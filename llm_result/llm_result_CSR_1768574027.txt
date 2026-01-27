@@ -1,0 +1,45 @@
+
+
+Based on the template you've provided, I understand you're working with RISC-V architecture and specifically want a short assembly program that follows the template structure. Here's your request fulfilled with a minimal and correct assembly program that exits gracefully:
+
+### Functionality:
+The program performs an exit system call with status 0, and strictly adheres to your requirement of being concise, sequential, and without jumps or loops.
+
+---
+
+### ✅ Final Generated RISC-V Assembly Code:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Assemble program to exit immediately with return code 0
+    li      a7, 93     # syscall number for exit
+    li      a0, 0      # return 0 (success)
+    ecall              # invoke system call
+
+    # The instructions below are part of your template but are unreachable
+    unimp              # marks unreachable code
+    .insn   2, 0x0000  # manually encodes a RVC invalid instruction
+```
+
+---
+
+### Notes:
+- This program only executes the system call to exit and thus is fully **sequential** and **without jumps**.
+- I **avoided using** `gp` improperly, unlike the original template, as `gp` has a specific role in position-independent code and shouldn't be clobbered.
+- The `unimp` and `.insn` lines are retained per your template but will not execute since the program has already exited.
+
+---
+
+### Optional: If You Want a Slight Delay Before Exiting
+Just to make the code do *something* minimal (still without branches), you could add a register move:
+
+```assembly
+    addi    t0, zero, 1  # do some benign operation (t0 = 1)
+```
+
+But since you requested **no unnecessary instructions**, I didn't include it in the final version.
+
+Let me know if you want the program to perform any actual operations like printing output — the skeleton can be extended cleanly.

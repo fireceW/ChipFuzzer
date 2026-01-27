@@ -1,0 +1,220 @@
+ChipFuzzer 多模块测试报告
+生成时间: 2026-01-26 16:53:32
+模块列表: ['Bku', 'LogPerfEndpoint', 'RenameTable_2', 'Rob', 'LoadQueueReplay', 'StoreQueue', 'RenameTable_1', 'RenameTable', 'RenameBuffer', 'PtwCache', 'VLMergeBufferImp', 'SSIT', 'Ftq', 'EntriesVfmaVialuFixVfalu', 'WaitTable', 'ArrayMulDataModule', 'Tage_SC', 'L1PrefetchSourceArray', 'EntriesVlduVstu', 'EntriesVfmaVialuFixVimacVppuVfaluVfcvtVipuVsetrvfwvf', 'DecodeUnitComp']
+运行模式: continue
+每模块最大尝试次数: 1
+
+
+================================================================================
+模块测试报告: Bku
+================================================================================
+开始时间: 2026-01-26 16:53:33
+结束时间: 2026-01-26 16:54:37
+完成状态: max_iterations
+执行次数: 1
+初始未覆盖行数: 39
+最终未覆盖行数: 39
+本次覆盖行数: 0
+
+--- 初始未覆盖代码行 (39 行) ---
+  %000000     else begin
+  %000000       validVecThisFu_1 <= io_in_valid;
+  %000000       validVecThisFu_2 <= validVecThisFu_1;
+  %000000   always @(posedge clock) begin
+  %000000     if (rdyVec_0 & io_in_valid) begin
+  %000000       perfVec_1_eliminatedMove <= io_in_bits_perfDebugInfo_eliminatedMove;
+  %000000       perfVec_1_renameTime <= io_in_bits_perfDebugInfo_renameTime;
+  %000000       perfVec_1_dispatchTime <= io_in_bits_perfDebugInfo_dispatchTime;
+  %000000       perfVec_1_enqRsTime <= io_in_bits_perfDebugInfo_enqRsTime;
+  %000000       perfVec_1_selectTime <= io_in_bits_perfDebugInfo_selectTime;
+  %000000       perfVec_1_issueTime <= io_in_bits_perfDebugInfo_issueTime;
+  %000000       perfVec_1_writebackTime <= io_in_bits_perfDebugInfo_writebackTime;
+  %000000       perfVec_1_runahead_checkpoint_id <= io_in_bits_perfDebugInfo_runahead_checkpoint_id;
+  %000000       perfVec_1_tlbFirstReqTime <= io_in_bits_perfDebugInfo_tlbFirstReqTime;
+  %000000       perfVec_1_tlbRespTime <= io_in_bits_perfDebugInfo_tlbRespTime;
+  %000000       seqNumVec_1_seqNum <= io_in_bits_debug_seqNum_seqNum;
+  %000000       seqNumVec_1_uopIdx <= io_in_bits_debug_seqNum_uopIdx;
+  %000000     if (rdyVec_1 & validVecThisFu_1) begin
+  %000000       perfVec_2_eliminatedMove <= perfVec_1_eliminatedMove;
+  %000000       perfVec_2_renameTime <= perfVec_1_renameTime;
+  %000000       perfVec_2_dispatchTime <= perfVec_1_dispatchTime;
+  %000000       perfVec_2_enqRsTime <= perfVec_1_enqRsTime;
+  %000000       perfVec_2_selectTime <= perfVec_1_selectTime;
+  %000000       perfVec_2_issueTime <= perfVec_1_issueTime;
+  %000000       perfVec_2_writebackTime <= perfVec_1_writebackTime;
+  %000000       perfVec_2_runahead_checkpoint_id <= perfVec_1_runahead_checkpoint_id;
+  %000000       perfVec_2_tlbFirstReqTime <= perfVec_1_tlbFirstReqTime;
+  %000000       perfVec_2_tlbRespTime <= perfVec_1_tlbRespTime;
+  %000000       seqNumVec_2_seqNum <= seqNumVec_1_seqNum;
+  %000000       seqNumVec_2_uopIdx <= seqNumVec_1_uopIdx;
+  %000000     if (rdyVec_0 & io_in_valid)
+  %000000       funcReg <= io_in_bits_ctrl_fuOpType;
+  %000000     if (io_in_bits_validPipe_1 & validVecThisFu_1 & rdyVec_1)
+  %000000       io_out_bits_res_data_r <=
+  %000000           ? _cryptoModule_io_out
+  %000000               ? _countModule_io_out
+  %000000               : funcReg[2] ? _miscModule_io_out : _clmulModule_io_out;
+  %000000         validVecThisFu_1 = 1'h0;
+  %000000         validVecThisFu_2 = 1'h0;
+
+--- 最终未覆盖代码行 (39 行) ---
+  %000000     else begin
+  %000000       validVecThisFu_1 <= io_in_valid;
+  %000000       validVecThisFu_2 <= validVecThisFu_1;
+  %000000   always @(posedge clock) begin
+  %000000     if (rdyVec_0 & io_in_valid) begin
+  %000000       perfVec_1_eliminatedMove <= io_in_bits_perfDebugInfo_eliminatedMove;
+  %000000       perfVec_1_renameTime <= io_in_bits_perfDebugInfo_renameTime;
+  %000000       perfVec_1_dispatchTime <= io_in_bits_perfDebugInfo_dispatchTime;
+  %000000       perfVec_1_enqRsTime <= io_in_bits_perfDebugInfo_enqRsTime;
+  %000000       perfVec_1_selectTime <= io_in_bits_perfDebugInfo_selectTime;
+  %000000       perfVec_1_issueTime <= io_in_bits_perfDebugInfo_issueTime;
+  %000000       perfVec_1_writebackTime <= io_in_bits_perfDebugInfo_writebackTime;
+  %000000       perfVec_1_runahead_checkpoint_id <= io_in_bits_perfDebugInfo_runahead_checkpoint_id;
+  %000000       perfVec_1_tlbFirstReqTime <= io_in_bits_perfDebugInfo_tlbFirstReqTime;
+  %000000       perfVec_1_tlbRespTime <= io_in_bits_perfDebugInfo_tlbRespTime;
+  %000000       seqNumVec_1_seqNum <= io_in_bits_debug_seqNum_seqNum;
+  %000000       seqNumVec_1_uopIdx <= io_in_bits_debug_seqNum_uopIdx;
+  %000000     if (rdyVec_1 & validVecThisFu_1) begin
+  %000000       perfVec_2_eliminatedMove <= perfVec_1_eliminatedMove;
+  %000000       perfVec_2_renameTime <= perfVec_1_renameTime;
+  %000000       perfVec_2_dispatchTime <= perfVec_1_dispatchTime;
+  %000000       perfVec_2_enqRsTime <= perfVec_1_enqRsTime;
+  %000000       perfVec_2_selectTime <= perfVec_1_selectTime;
+  %000000       perfVec_2_issueTime <= perfVec_1_issueTime;
+  %000000       perfVec_2_writebackTime <= perfVec_1_writebackTime;
+  %000000       perfVec_2_runahead_checkpoint_id <= perfVec_1_runahead_checkpoint_id;
+  %000000       perfVec_2_tlbFirstReqTime <= perfVec_1_tlbFirstReqTime;
+  %000000       perfVec_2_tlbRespTime <= perfVec_1_tlbRespTime;
+  %000000       seqNumVec_2_seqNum <= seqNumVec_1_seqNum;
+  %000000       seqNumVec_2_uopIdx <= seqNumVec_1_uopIdx;
+  %000000     if (rdyVec_0 & io_in_valid)
+  %000000       funcReg <= io_in_bits_ctrl_fuOpType;
+  %000000     if (io_in_bits_validPipe_1 & validVecThisFu_1 & rdyVec_1)
+  %000000       io_out_bits_res_data_r <=
+  %000000           ? _cryptoModule_io_out
+  %000000               ? _countModule_io_out
+  %000000               : funcReg[2] ? _miscModule_io_out : _clmulModule_io_out;
+  %000000         validVecThisFu_1 = 1'h0;
+  %000000         validVecThisFu_2 = 1'h0;
+================================================================================
+
+
+================================================================================
+模块测试报告: LogPerfEndpoint
+================================================================================
+开始时间: 2026-01-26 16:54:37
+结束时间: 2026-01-26 16:57:11
+完成状态: max_iterations
+执行次数: 1
+初始未覆盖行数: 41413
+最终未覆盖行数: 40263
+本次覆盖行数: 1150
+
+--- 初始未覆盖代码行 (41413 行) ---
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_94);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_47, x2_bore_48, x2_bore_49);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_41, x2_bore_42, x2_bore_43);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_19, x2_bore_20, x2_bore_21);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_73);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_65);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_66);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_64);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_72);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_26, x2_bore_27, x2_bore_28);
+  ... 还有 41363 行
+
+--- 最终未覆盖代码行 (40263 行) ---
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_94);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_47, x2_bore_48, x2_bore_49);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_41, x2_bore_42, x2_bore_43);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_19, x2_bore_20, x2_bore_21);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_73);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_65);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_66);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_64);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_72);
+  %000000         $fwrite(32'h80000002,
+  %000000                 io_timer, x2_bore_26, x2_bore_27, x2_bore_28);
+  ... 还有 40213 行
+================================================================================
+

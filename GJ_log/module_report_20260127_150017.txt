@@ -1,0 +1,6 @@
+ChipFuzzer 多模块测试报告
+生成时间: 2026-01-27 15:00:17
+模块列表: ['Bku', 'LogPerfEndpoint', 'RenameTable_2', 'Rob', 'LoadQueueReplay', 'StoreQueue', 'RenameTable_1', 'RenameTable', 'RenameBuffer', 'PtwCache', 'VLMergeBufferImp', 'SSIT', 'Ftq', 'EntriesVfmaVialuFixVfalu', 'WaitTable', 'ArrayMulDataModule', 'Tage_SC', 'L1PrefetchSourceArray', 'EntriesVlduVstu', 'EntriesVfmaVialuFixVimacVppuVfaluVfcvtVipuVsetrvfwvf', 'DecodeUnitComp']
+运行模式: fresh
+每模块最大尝试次数: 20
+

@@ -1,0 +1,22 @@
+The line “input io_msb” declares an input signal that carries the most significant bit (MSB) of some data bus. To cover it, we should exercise both cases where the MSB is 0 and 1. The assembly below creates 32-bit values with MSB=0 and MSB=1, and extracts the MSB via an arithmetic right shift, covering both scenarios without loops or jumps.
+
+.section .text
+.global _start
+
+_start:
+    # 汇编程序去执行 uncovered code
+    # 覆盖 io_msb 为 0 的情况(MSB=0 的输入)
+    li      t0, 0x7FFFFFFF    # 32位最高位为0
+    srai    t1, t0, 31        # 提取MSB到t1(结果=0)
+
+    # 覆盖 io_msb 为 1 的情况(MSB=1 的输入)
+    li      t0, 0x80000000    # 32位最高位为1
+    srai    t2, t0, 31        # 提取MSB到t2(结果=1)
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000

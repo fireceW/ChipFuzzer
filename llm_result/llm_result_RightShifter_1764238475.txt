@@ -1,0 +1,21 @@
+The code "%000000   input         io_msb," declares a hardware input port named io_msb (most significant bit). To cover it, we simulate sampling the MSB of a 32-bit value twice: once with MSB=1 and once with MSB=0. The assembly below is simple, sequential, has no loops or jumps, and keeps the exit logic unchanged. It is valid on both RV32 and RV64.
+
+'''assembly
+.section .text
+.global _start
+
+_start:
+    # 构造并采样 io_msb:先MSB=1,再MSB=0
+    li      t0, 0x80000000   # 32位数的MSB=1
+    srli    t1, t0, 31       # 提取MSB到t1,结果应为1
+    li      t0, 0x7FFFFFFF   # 32位数的MSB=0
+    srli    t2, t0, 31       # 提取MSB到t2,结果应为0
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+'''

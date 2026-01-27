@@ -1,0 +1,171 @@
+Below is a minimal RISC‐V assembly program that sets up control and operand vectors so that the Verilog FSM and associated logic you showed can exercise the uncovered branches (including `fsm_q == 4'h4`, `iter_num_q` non‐zero and zero, `start_handshaked`, `finish_ready_i`, NAN/INF/zero paths, etc.).  
+
+It follows your template, is linear (no loops/jumps), and uses simple loads/stores.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Configure starting FSM state and iteration number so that:
+    # - FSM can reach state 4'h4 with iter_num_q nonzero
+    # - Iteration can then count down to zero to hit branches using (|iter_num_q)
+
+    # fsm_q initial = 4'h4
+    li      a0, 0x4
+    la      t0, fsm_q_init
+    sb      a0, 0(t0)
+
+    # iter_num_q initial = 0x3 (non-zero, then will decrement)
+    li      a1, 0x3
+    la      t1, iter_num_init
+    sb      a1, 0(t1)
+
+    # need_2_cycles_init = 1 to exercise the iter_num_q update path
+    li      a2, 0x1
+    la      t2, need_2_cycles_init_vec
+    sb      a2, 0(t2)
+
+    # op_l_shift_num_0[1:0] = 0b10 to drive iter_num_q shift/concat path
+    li      a3, 0x2
+    la      t3, op_l_shift_num0_vec
+    sb      a3, 0(t3)
+
+    # start_handshaked = 1 to enter main FSM body and latch many *_q signals
+    li      a4, 0x1
+    la      t4, start_handshaked_vec
+    sb      a4, 0(t4)
+
+    # finish_ready_i = 1 to exercise the "fsm_q != 4'h8 | finish_ready_i" branch
+    li      a5, 0x1
+    la      t5, finish_ready_vec
+    sb      a5, 0(t5)
+
+    # fp_fmt_q selection: set bits so that all three format paths are active:
+    #   fp_fmt_q[0] = 1, fp_fmt_q[1] = 1, fp_fmt_q[2] = 1
+    li      a6, 0x7
+    la      t6, fp_fmt_vec
+    sb      a6, 0(t6)
+
+    # _iter_num_d_T_11 / _7 / _4 = 1 to drive fp_fmt_q <= {...} path
+    li      a0, 0x1
+    la      t0, iter_num_d_T11_vec
+    sb      a0, 0(t0)
+    la      t1, iter_num_d_T7_vec
+    sb      a0, 0(t1)
+    la      t2, iter_num_d_T4_vec
+    sb      a0, 0(t2)
+
+    # rm_i (rounding mode) arbitrary non-zero
+    li      a1, 0x2
+    la      t3, rm_vec
+    sb      a1, 0(t3)
+
+    # res_is_nan_*_d: mix of NAN and non-NAN to hit sign masking
+    # 0: NAN, 1: not NAN, 2: NAN, 3: not NAN
+    li      a2, 0x1
+    la      t4, res_is_nan_0_d_vec
+    sb      a2, 0(t4)
+    li      a2, 0x0
+    la      t5, res_is_nan_1_d_vec
+    sb      a2, 0(t5)
+    li      a2, 0x1
+    la      t6, res_is_nan_2_d_vec
+    sb      a2, 0(t6)
+    li      a2, 0x0
+    la      t0, res_is_nan_3_d_vec
+    sb      a2, 0(t0)
+
+    # op_i: choose sign bits and exponents to exercise:
+    # op_i[63], [47], [31], [15] all set to 1 for sign handling
+    # exponent fields for INF detection:
+    #   op_exp_is_max_0,1 already derived outside; we set exponent bits here.
+    #   For op2/op3 use 5-bit all-ones fields: bits[46:42], [14:10] = 0b11111
+    # Construct 64-bit operand manually.
+    # High word
+    lui     a3, 0xFFFFF       # upper bits mostly ones
+    slli    a3, a3, 12
+    addi    a3, a3, 0xFFF     # a3 ~ 0xFFFFFFFFF000 + 0xFFF = 0xFFFFFFFFFFFF
+    # Low word
+    li      a4, 0xFFFF
+    # Store as a 64-bit test operand
+    la      t1, op_vec
+    sd      a3, 0(t1)         # approximate pattern with high-bit and exponent fields set
+
+    # _u_lzc_*_empty_o = 1 to trigger res_is_inf_*_q paths
+    li      a5, 0x1
+    la      t2, u_lzc0_empty_vec
+    sb      a5, 0(t2)
+    la      t3, u_lzc1_empty_vec
+    sb      a5, 0(t3)
+    la      t4, u_lzc2_empty_vec
+    sb      a5, 0(t4)
+    la      t5, u_lzc3_empty_vec
+    sb      a5, 0(t5)
+
+    # op_is_zero_* mix: some zeros, some non-zeros to exercise exact zero flags
+    li      a6, 0x1
+    la      t6, op_is_zero_0_vec
+    sb      a6, 0(t6)
+    li      a0, 0x0
+    la      t0, op_is_zero_1_vec
+    sb      a0, 0(t0)
+    li      a1, 0x1
+    la      t1, op_is_zero_2_vec
+    sb      a1, 0(t1)
+    li      a2, 0x0
+    la      t2, op_is_zero_3_vec
+    sb      a2, 0(t2)
+
+    # op_invalid_0_d = 1 to drive op_invalid_0_q register
+    li      a3, 0x1
+    la      t3, op_invalid_0_d_vec
+    sb      a3, 0(t3)
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+
+.section .data
+    # FSM and iteration-related vectors
+    fsm_q_init:            .byte 0
+    iter_num_init:         .byte 0
+    need_2_cycles_init_vec:.byte 0
+    op_l_shift_num0_vec:   .byte 0
+    start_handshaked_vec:  .byte 0
+    finish_ready_vec:      .byte 0
+
+    # Format and helper signals
+    fp_fmt_vec:            .byte 0
+    iter_num_d_T11_vec:    .byte 0
+    iter_num_d_T7_vec:     .byte 0
+    iter_num_d_T4_vec:     .byte 0
+    rm_vec:                .byte 0
+
+    # NAN flags (combinational d inputs)
+    res_is_nan_0_d_vec:    .byte 0
+    res_is_nan_1_d_vec:    .byte 0
+    res_is_nan_2_d_vec:    .byte 0
+    res_is_nan_3_d_vec:    .byte 0
+
+    # Operand and LZC outputs
+    op_vec:                .dword 0
+    u_lzc0_empty_vec:      .byte 0
+    u_lzc1_empty_vec:      .byte 0
+    u_lzc2_empty_vec:      .byte 0
+    u_lzc3_empty_vec:      .byte 0
+
+    # Zero detection inputs
+    op_is_zero_0_vec:      .byte 0
+    op_is_zero_1_vec:      .byte 0
+    op_is_zero_2_vec:      .byte 0
+    op_is_zero_3_vec:      .byte 0
+
+    # Invalid op flag
+    op_invalid_0_d_vec:    .byte 0
+```

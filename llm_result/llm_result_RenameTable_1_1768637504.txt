@@ -1,0 +1,72 @@
+
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize data registers with sample values
+    li   a3, 0x00      # t1_wSpec_0_data
+    li   a4, 0x11      # t1_wSpec_1_data
+    li   a5, 0x22      # t1_wSpec_2_data
+    li   a6, 0x33      # t1_wSpec_3_data
+    li   a7, 0x44      # t1_wSpec_4_data
+
+    # Initialize address registers
+    li   a0, 0x0010    # Set bit 4 of t1_wSpec_addr_1
+    li   a1, 0x0800    # Set bit 11 of t1_wSpec_addr_4
+    li   a2, 0x0002    # Set bit 1 of t1_wSpec_addr_5
+
+    # Test t1_wSpec_addr_1[4] ? t1_wSpec_1_data : t1_wSpec_0_data
+    andi  t0, a0, 0x10
+    beqz  t0, .L0
+    mv    t6, a4
+    j     .L0_end
+.L0:
+    mv    t6, a3
+.L0_end:
+
+    # Test t1_wSpec_addr_5[5] ? t1_wSpec_4_data : t1_wSpec_3_data
+    andi  t1, a2, 0x20
+    beqz  t1, .L1
+    mv    t6, a7
+    j     .L1_end
+.L1:
+    mv    t6, a6
+.L1_end:
+
+    # Test t1_wSpec_addr_5[9] ? t1_wSpec_4_data : t1_wSpec_3_data
+    andi  t2, a2, 0x200
+    beqz  t2, .L2
+    mv    t6, a7
+    j     .L2_end
+.L2:
+    mv    t6, a6
+.L2_end:
+
+    # Test t1_wSpec_addr_5[13] ? t1_wSpec_4_data : t1_wSpec_3_data
+    andi  t3, a2, 0x2000
+    beqz  t3, .L3
+    mv    t6, a7
+    j     .L3_end
+.L3:
+    mv    t6, a6
+.L3_end:
+
+    # Test t1_wSpec_addr_5[19] ? t1_wSpec_4_data : t1_wSpec_3_data
+    andi  t4, a2, 0x80000
+    beqz  t4, .L4
+    mv    t6, a7
+    j     .L4_end
+.L4:
+    mv    t6, a6
+.L4_end:
+
+    # Exit program
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```

@@ -1,0 +1,25 @@
+The snippet "%000000   input         io_msb," suggests an input signal representing the most significant bit (MSB) of a 6-bit IO bus. To cover this, we can exercise both cases where the MSB is 0 and 1 by forming 6-bit values and extracting the MSB via shift and mask. The following RISC-V assembly program does this in a simple, sequential way without loops or jumps and then exits as requested.
+
+'''assembly
+.section .text
+.global _start
+
+_start:
+    # 以6位总线为例,先构造%000000(MSB=0)的输入并提取MSB
+    li      t0, 0x00        # 总线值:%000000
+    srli    t1, t0, 5       # 右移5位得到MSB位置
+    andi    t1, t1, 1       # 保留最低位,得到io_msb=0
+
+    # 构造%100000(MSB=1)的输入并提取MSB,以覆盖另一种情况
+    li      t0, 0x20        # 总线值:%100000(6位中的MSB位置为bit5)
+    srli    t2, t0, 5
+    andi    t2, t2, 1       # 得到io_msb=1
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+'''

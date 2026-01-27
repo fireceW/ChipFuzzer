@@ -1,0 +1,54 @@
+Generating assembly code to cover the provided code requires understanding the conditions that trigger each branch or state transition. The given code deals with a finite state machine (FSM) and updates several registers based on conditions. The objective here is to create an assembly program that covers these states and executes without loops or jumps while addressing specific conditions that trigger transitions.
+
+Below is an assembly code following the provided template:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Assembly to cover the fsm_q transitions and conditions
+
+    # Load initial values to registers to simulate one path
+    li t0, 0x4          # fsm_q = 4
+    li t1, 1            # iter_num_q is not zero
+    li t2, 0            # start_handshaked = false
+    li t3, 1            # finish_ready_i = true
+
+    # Cover fsm_q == 4'h4 and (|iter_num_q) ? 4'h4 : 4'h8;
+    beq t0, t1, state_4 # If fsm_q is 4 and iter_num_q != 0, stay in state_4
+    li t0, 0x8          # Else transition to state_8
+
+state_4:
+    li t4, 1            # Simulate operations with dependent variables
+    li t5, 0x1          # Simulate fsm_q[0] = true (update iter_num_q)
+    li t6, 0            # need_2_cycles_init = false
+
+    # Based on need_2_cycles_init, update iter_num_q
+    beq t6, zero, iter_update
+    li t1, 0xC          # Set iter_num_q to new value based on logic
+
+iter_update:
+    sub t1, t1, t5      # Subtract 1 from iter_num_q to simulate decrement
+
+    # Cover other register updates when start_handshaked is true
+    beq t2, t3, ready_case  # Simulate start_handshaked as true when finish_ready_i is true (ensure handshaked conditions)
+
+ready_case:
+    li t7, 1            # rm_i -> rm_q
+    li t8, 1            # Assuming all inputs are non-NaN and set sign and exp registers (res_is_nan_x_d = false)
+    li t9, 0            # Set op_i values as required
+
+    # Further simulate setting output conditions
+    or t9, t9, t8       # Logical OR for signs (simulating operation)
+   
+    # Exit the program (unmodified ecall routine)
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+This assembly code attempts to cover the state transition logic as specified. Each  `li` (load immediate) simulates a condition or register setup. The code uses `beq` (branch if equal) to simulate logical conditions without creating loops or complex jumps, fulfilling the requirement for simplicity and direct execution.

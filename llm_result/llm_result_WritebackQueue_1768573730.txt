@@ -1,0 +1,22 @@
+
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Trigger conditions in HDL code
+    li t0, 1                # Load immediate to enable valid signal
+    li t1, 0xDEAD0000       # Assuming memory-mapped IO address
+    sw t0, (t1)             # Set valid signal
+    sw t0, 4(t1)            # Set ready signal
+    lw t2, (t1)             # Read to trigger transaction
+
+    # Exit program
+    li gp,1
+    li a7,93
+    li a0,0
+    ecall
+    unimp
+    .insn 2, 0x0000
+```

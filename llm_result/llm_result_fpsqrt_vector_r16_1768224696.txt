@@ -1,0 +1,58 @@
+Creating an assembly program to directly execute logic from a complex digital design implemented in hardware description language (HDL), such as Verilog, is quite intricate because HDL operates at a different level of abstraction than assembly language. HDL models hardware directly, whereas assembly language is meant for a CPU instruction set.
+
+However, here is an attempt to translate and execute the behavioral aspects of the HDL code in assembly language. This approach assumes a hypothetical CPU with support for the necessary operations you aim to emulate with this assembly code.
+
+Here's a simple representation of what the assembly code might look like:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize registers similar to HDL registers
+    # For simplicity, let's assume registers correspond to fsm_q, iter_num_q, etc.
+
+    li t0, 0x8     # fsm_q initialized to 0x8
+    li t1, 4       # iter_num_q initialized to an arbitrary non-zero value
+    li t2, 1       # finish_ready_i set to true for demonstration
+    li t3, 1       # start_handshaked set to true
+
+    # Execute HDL-like operations
+    # Equivalent operations might look unfamiliar due to HDL and Assembly mismatch
+    li t5, 0x4
+    bne t0, t5, label1   # if (fsm_q != 4'h4)
+
+    ori t6, t1, 0        # (|iter_num_q) -> For illustration, assume iter_num_q is non-zero
+    blez t6, label2
+
+    label1:
+    li t0, 0x4    # fsm_q <= 4'h4  if |iter_num_q else 4'h8
+    j label3
+
+    label2:
+    li t0, 0x8    # fsm_q <= 4'h8
+
+    label3:
+    li t4, 0x08   # Setting fsm_q to 4'h8 after an update
+    or t4, t2, t3 # if(fsm_q != 4'h8 | finish_ready_i), move to start_handshaked operations
+  
+    # Broad assumptions of HDL operations
+    # Here start_handshaked and associated operations could simply modify these assumed registers
+    # Since HDL and Assembly logic differ significantly, analogous operations are just illustrative
+
+    # Assembly exit logic
+    li     gp,  1
+    li     a7, 93
+    li     a0, 0
+    ecall
+    unimp
+    .insn  2, 0x0000
+```
+
+### Key Points:
+1. **Translation Process:** HDL operations are generally higher level, involving concurrent statements and clock processes not directly translatable to assembly. This code is more a structural attempt to show sequential logic in assembly.
+2. **Simulation:** Actual simulation logic for the hardware state machines would involve creating a processor emulator or incorporating the logic within a sophisticated simulator.
+3. **Assembly Registers:** Registers (like `t0`, `t1`) are used to simulate internal states (`fsm_q`, `iter_num_q`) in a hypothetical context.
+4. **Behavioral Execution:** Instead of true logic replication, this assembly attempts to follow the logical flow, but is limited due to the nature of assembly as a linear instruction set.
+
+Achieving full functional equivalence requires more detailed understanding and mapping of the FPGA circuit design elements into CPU-executable code, usually done in C/C++.

@@ -1,0 +1,58 @@
+To create assembly code to cover the provided pseudo-code, we'll need to mimic the operations described, especially focusing on conditions, assignments, and bitwise operations. We'll avoid control structures like loops and jumps as much as possible to stay aligned with the specifications.
+
+To write the assembly code, it's helpful to break down the functionality into simple operations over some registers, following the logical flow presented. Here is a simple implementation in RISC-V assembly language:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize required registers with zero or test values
+    li t0, 0               # Represent fsm_q
+    li t1, 0x4             # Represent constant 4
+    li t2, 0x8             # Represent constant 8
+    li t3, 0               # Temporary register to help with conditions
+    li t4, 1               # Represent finish_ready_i as 1 (or set it to 0 for non-trigger)
+    li t5, 0xF             # Represent |iter_num_q for bitwise checks
+
+    # Handle the FSM logic flow
+    bne t0, t1, skip_first
+    # if (fsm_q == 4'h4)
+    ori t0, t5, 0            # fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;
+    li  t3, 0x8
+    beq t0, t3, end_block
+    skip_first:
+
+    bne t0, t3, skip_second
+    # if (fsm_q != 4'h8 | finish_ready_i)
+    or t3, t0, t4           # fsm_q <= 4'h1;
+    li t0, 1                # Represent fsm_q becoming 4'h1
+    skip_second:
+
+    li t0, 8               # fsm_q <= 4'h8;
+    # Assuming a sequential operation for demonstration purposes
+
+end_block:
+    # Exit logic
+    li      gp, 1
+    li      a7, 93
+    li      a0, 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+### Explanation:
+- **Registers**: 
+  - `t0` represents `fsm_q`.
+  - `t1`, `t2` are constants likely for matching values of `fsm_q`
+  - `t3` is used for conditional operations.
+  - `t4` acts as a simulated value for `finish_ready_i`.
+  - `t5` stands for the bitwise checks similar to `|iter_num_q`.
+
+- **Assembly Instructions**:
+  - `li` loads an immediate value.
+  - `ori` is used for setting values based on conditions.
+  - `bne`, `beq` to conditionally skip sections.
+
+This sequence can also serve as a blueprint to adjust for more complex functionality by further distinguishing operational branches and dependencies.

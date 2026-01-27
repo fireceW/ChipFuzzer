@@ -1,0 +1,159 @@
+Below is a minimal RISC‐V assembly program that sets up input patterns intended to drive the RTL into exercising the uncovered logic you showed (denormals, NaNs, infinities, odd exponents, FSM transitions, etc.).  
+
+Because the Verilog is inside a hardware design (not a software function with a callable interface), assembly can only indirectly influence coverage via the values written into memory‐mapped registers or a testbench interface. In a typical co‐simulation or FPGA test harness, the verification environment will tie these GPR writes to DUT inputs (e.g., `op_i`, `flush_i`, `start_valid_i`, `finish_ready_i`, etc.).  
+
+This program:
+- Prepares several interesting `op_i` patterns in memory (zeros, subnormals, sNaN, qNaN, max exponent, etc.).
+- Touches them sequentially, so a testbench can sample and drive them into the DUT, giving you the chance to cover:  
+  - `op_exp_is_zero_*`, `op_l_shift_num_*` (denormals)  
+  - `op_exp_is_max_*`, `op_is_qnan_*`, `op_is_snan_*`, `op_invalid_0_d`  
+  - FSM transitions via signals like `flush_i`, `start_valid_i`, `finish_ready_i`, etc.
+
+No loops, no branches, only straight‐line code as requested.
+
+```assembly
+.section .data
+    # 64-bit patterns intended for op_i, covering:
+    # - zero
+    # - subnormal
+    # - normal
+    # - +inf
+    # - qNaN
+    # - sNaN
+    # - mixed-width cases (for 32/16/8-bit formats inside op_i)
+
+op_pattern_0:    .dword 0x0000000000000000   # +0.0  (zero, exp=0, frac=0)
+op_pattern_1:    .dword 0x0000000000000001   # smallest subnormal (exp=0, frac!=0)
+op_pattern_2:    .dword 0x3FF0000000000000   # 1.0 (normal)
+op_pattern_3:    .dword 0x7FF0000000000000   # +Inf (exp=max, frac=0)
+op_pattern_4:    .dword 0x7FF8000000000000   # quiet NaN (qNaN, MSB of frac = 1)
+op_pattern_5:    .dword 0x7FF0000000000001   # signaling NaN (sNaN, MSB of frac = 0, some frac bit =1)
+op_pattern_6:    .dword 0xFFF0000000000000   # -Inf (sign=1, exp=max, frac=0)
+op_pattern_7:    .dword 0xFFF8000000000001   # negative qNaN / sNaN mix
+op_pattern_8:    .dword 0x47FFFE0000000000   # large normal (high exponent, odd exponent)
+op_pattern_9:    .dword 0x000FFFFFFFFFFFFF   # subnormal-like with many frac bits set
+
+.section .bss
+    .align 3
+op_buf_0:    .space 8
+op_buf_1:    .space 8
+op_buf_2:    .space 8
+op_buf_3:    .space 8
+op_buf_4:    .space 8
+op_buf_5:    .space 8
+op_buf_6:    .space 8
+op_buf_7:    .space 8
+op_buf_8:    .space 8
+op_buf_9:    .space 8
+
+.section .text
+.global _start
+
+_start:
+    # Load interesting op_i patterns from .data and store to .bss.
+    # A testbench can map op_buf_X as the op_i source over time,
+    # driving the DUT to hit all the uncovered branches.
+
+    # op_pattern_0 -> op_buf_0  (zero)
+    la      t0, op_pattern_0
+    ld      t1, 0(t0)
+    la      t2, op_buf_0
+    sd      t1, 0(t2)
+
+    # op_pattern_1 -> op_buf_1  (subnormal, exp_is_zero_* == 1, lzc active)
+    la      t0, op_pattern_1
+    ld      t1, 0(t0)
+    la      t2, op_buf_1
+    sd      t1, 0(t2)
+
+    # op_pattern_2 -> op_buf_2  (normal number)
+    la      t0, op_pattern_2
+    ld      t1, 0(t0)
+    la      t2, op_buf_2
+    sd      t1, 0(t2)
+
+    # op_pattern_3 -> op_buf_3  (+Inf, exp_is_max, not NaN)
+    la      t0, op_pattern_3
+    ld      t1, 0(t0)
+    la      t2, op_buf_3
+    sd      t1, 0(t2)
+
+    # op_pattern_4 -> op_buf_4  (qNaN, op_is_qnan_* true)
+    la      t0, op_pattern_4
+    ld      t1, 0(t0)
+    la      t2, op_buf_4
+    sd      t1, 0(t2)
+
+    # op_pattern_5 -> op_buf_5  (sNaN, op_is_snan_* true)
+    la      t0, op_pattern_5
+    ld      t1, 0(t0)
+    la      t2, op_buf_5
+    sd      t1, 0(t2)
+
+    # op_pattern_6 -> op_buf_6  (-Inf, sign=1, exp=max)
+    la      t0, op_pattern_6
+    ld      t1, 0(t0)
+    la      t2, op_buf_6
+    sd      t1, 0(t2)
+
+    # op_pattern_7 -> op_buf_7  (negative NaN variant)
+    la      t0, op_pattern_7
+    ld      t1, 0(t0)
+    la      t2, op_buf_7
+    sd      t1, 0(t2)
+
+    # op_pattern_8 -> op_buf_8  (large normal, odd exponent case)
+    la      t0, op_pattern_8
+    ld      t1, 0(t0)
+    la      t2, op_buf_8
+    sd      t1, 0(t2)
+
+    # op_pattern_9 -> op_buf_9  (dense fraction bits, for inexact/rounding)
+    la      t0, op_pattern_9
+    ld      t1, 0(t0)
+    la      t2, op_buf_9
+    sd      t1, 0(t2)
+
+    # Optionally set some scalar control-like values that the testbench
+    # can interpret as flush_i, start_valid_i, finish_ready_i, etc.
+    # (These are simple constants; mapping to real DUT signals is done
+    #  by the verification environment.)
+
+    # flush_i = 1, start_valid_i = 1, finish_ready_i = 0, need_2_cycles_init = 1
+    li      t3, 1          # can be sampled as flush_i / start_valid_i
+    li      t4, 0          # can be sampled as finish_ready_i
+    li      t5, 1          # can be sampled as need_2_cycles_init
+
+    # write to known memory so TB can pick them up
+    .align 3
+ctrl_buf_flush:    .dword 0
+ctrl_buf_start:    .dword 0
+ctrl_buf_finish:   .dword 0
+ctrl_buf_need2:    .dword 0
+
+    la      t0, ctrl_buf_flush
+    sd      t3, 0(t0)
+
+    la      t0, ctrl_buf_start
+    sd      t3, 0(t0)
+
+    la      t0, ctrl_buf_finish
+    sd      t4, 0(t0)
+
+    la      t0, ctrl_buf_need2
+    sd      t5, 0(t0)
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Use your testbench to:
+- Drive `op_i` with the values from `op_buf_0` ... `op_buf_9` over time.  
+- Interpret `ctrl_buf_*` as control inputs to push the FSM through `4'h1 → 4'h2 → 4'h4 → 4'h8 → 4'h1`, etc.  
+
+This combination will allow the coverage tools to see activity through the uncovered lines you listed.

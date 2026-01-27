@@ -1,0 +1,133 @@
+The Verilog fragment describes a small FSM (`fsm_q`) and some iteration / format registers (`iter_num_q`, `fp_fmt_q`, etc.).  
+To get coverage, the testbench usually drives operand and control busses from the CPU registers; in these flows, simply loading specific constants into core registers (a0–t3, etc.) is used to tickle different hardware paths.
+
+From the snippet:
+
+- `fsm_q` takes values `1`, `4`, `8` and depends on `finish_ready_i` and `iter_num_q`.
+- `iter_num_q` is updated differently based on `fsm_q[0]`/`fsm_q[1]` and `need_2_cycles_init`.
+- Lots of “start” logic is gated by `start_handshaked`, and many result flags depend on operand bits and exponent/max/zero conditions.
+
+The goal in assembly is therefore to:
+
+1. Produce several distinct patterns on the main operand bus (commonly `a0`, `a1` or temporaries) that look like:
+   - NaNs
+   - Infinities
+   - Zeros
+   - Normal values with different exponents/fractions
+   so that signals like `res_is_nan_*`, `res_is_inf_*`, `op_is_zero_*`, `_u_lzc_*_empty_o`, etc., become both 0 and 1 at different times.
+2. Toggle control-like signals that are often mapped from integer registers (`t0`–`t3`, `a0`, etc.) so the FSM visits:
+   - `fsm_q == 4'h4` with `|iter_num_q` true and false
+   - the path where `fsm_q != 4'h8`
+   - the path where `finish_ready_i` is asserted
+   - `start_handshaked` asserted and de‐asserted
+   - `need_2_cycles_init` asserted and de‐asserted.
+
+Below is a concise RISC‐V assembly that sequentially writes a variety of bit patterns into registers, with no loops or branches, in the same style as your working example. This kind of pattern-based stimulus is what coverage tools expect from bare‐metal tests in these environments.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Pattern 1: normal positive double, medium exponent
+    lui     a0, 0x3ff00       # 0x3ff0_0000 high bits -> exponent ~0x3ff
+    addi    a0, a0, 0x0
+    lui     a1, 0x00000       # lower operand bits zero
+    addi    a1, a1, 0x0
+
+    li      t0, 0x1           # drive control: start_handshaked = 1
+    li      t1, 0x4           # fsm_q like state 4
+    li      t2, 0x3           # iter_num_q nonzero
+    li      t3, 0x0           # finish_ready_i = 0
+
+    # Pattern 2: need_2_cycles_init asserted, still iter_num nonzero
+    li      t0, 0x3           # set multiple control bits (start & need_2_cycles_init)
+    li      t2, 0xC           # iter_num_q = 0b1100
+
+    # Pattern 3: normal value, small exponent, clear iter_num
+    lui     a0, 0x00080       # small exponent pattern
+    addi    a0, a0, 0x0
+    lui     a1, 0x00000
+    addi    a1, a1, 0x0
+
+    li      t2, 0x0           # iter_num_q = 0, exercise (|iter_num_q)==0
+    li      t1, 0x4           # keep fsm_q in 4
+    li      t3, 0x1           # finish_ready_i = 1 to hit fsm_q != 8 | finish_ready_i
+
+    # Pattern 4: +Infinity style (all exponent bits = 1, mantissa 0)
+    lui     a0, 0x7ff00       # exponent all ones
+    addi    a0, a0, 0x0
+    lui     a1, 0x00000
+    addi    a1, a1, 0x0
+
+    li      t0, 0x1           # new start
+    li      t1, 0x8           # drive fsm_q toward 8
+    li      t2, 0x1           # iter_num_q = 1
+
+    # Pattern 5: NaN style (all exponent bits = 1, mantissa nonzero)
+    lui     a0, 0x7ff40       # exponent all ones, some fraction bits set
+    addi    a0, a0, 0x0
+    lui     a1, 0x00010
+    addi    a1, a1, 0x0
+
+    li      t0, 0x1
+    li      t1, 0x1           # fsm_q LSB set (fsm_q[0]=1)
+    li      t2, 0x5           # iter_num_q = 5
+
+    # Pattern 6: quiet NaN / signaling NaN variant
+    lui     a0, 0x7ff80
+    addi    a0, a0, 0x0
+    lui     a1, 0x00020
+    addi    a1, a1, 0x0
+
+    li      t0, 0x1
+    li      t1, 0x2           # fsm_q[1]=1
+    li      t2, 0xC           # iter_num_q = 1100b
+
+    # Pattern 7: negative normal, high exponent
+    lui     a0, 0xbff00       # sign bit = 1, exponent ~0x3ff
+    addi    a0, a0, 0x0
+    lui     a1, 0x00000
+    addi    a1, a1, 0x0
+
+    li      t0, 0x1
+    li      t1, 0x4
+    li      t2, 0x2
+
+    # Pattern 8: exact zero
+    li      a0, 0x0
+    li      a1, 0x0
+
+    li      t0, 0x1           # start_handshaked, zero operand
+    li      t1, 0x8           # fsm_q = 8
+    li      t2, 0x0           # iter_num_q = 0
+    li      t3, 0x0           # finish_ready_i = 0
+
+    # Pattern 9: mixed 32‐bit lanes to exercise out_sign_[0..3] and out_exp_[0..3]
+    # 64-bit value in a0 contains four 16‐bit or 32‐bit subfields
+    lui     a0, 0x3f80f       # upper bits: positive normal in different formats
+    addi    a0, a0, 0x123
+    lui     a1, 0x1e007       # lower bits: various exponents and signs
+    addi    a1, a1, 0x89a
+
+    li      t0, 0x1           # start again to latch new fp_fmt_q, rm_q, out_sign_*, out_exp_*
+    li      t1, 0x4
+    li      t2, 0x3
+    li      t3, 0x1           # finish_ready_i = 1
+
+    # Final pattern: another zero to toggle exact_zero paths back
+    li      a0, 0x0
+    li      a1, 0x0
+    li      t0, 0x0
+    li      t1, 0x1           # fsm_q back to 1
+    li      t2, 0x0
+    li      t3, 0x0
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```

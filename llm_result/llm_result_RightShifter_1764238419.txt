@@ -1,0 +1,29 @@
+Analysis:
+The uncovered code appears to be a 1-bit input signal named io_msb (most significant bit). To cover it, we need to drive it with both 0 and 1. The following RISC-V assembly defines a byte-sized symbol io_msb in data, then sequentially writes 0 and 1 to it to exercise the signal, followed by the required exit logic. There are no loops or jumps, just a simple straight-line instruction flow.
+
+assembly
+.section .text
+.global _start
+
+_start:
+    # 将 io_msb 置为 0
+    la      t0, io_msb
+    li      t1, 0
+    sb      t1, 0(t0)
+
+    # 将 io_msb 置为 1(触发 msb 覆盖)
+    li      t1, 1
+    sb      t1, 0(t0)
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+.section .data
+.align 1
+io_msb:
+    .byte 0

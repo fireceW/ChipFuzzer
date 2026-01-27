@@ -1,0 +1,16 @@
+[Unit]
+Description=ChipFuzzer Web API (SSE/Logs)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/ChipFuzzer/web-api
+ExecStart=/root/ChipFuzzer/web-api/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8088
+Restart=always
+RestartSec=2
+Environment=CHIPFUZZER_BASE=/root/ChipFuzzer
+Environment=CHIPFUZZER_RUNS=/root/ChipFuzzer/runs
+
+[Install]
+WantedBy=multi-user.target
+

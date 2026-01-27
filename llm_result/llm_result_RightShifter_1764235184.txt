@@ -1,0 +1,26 @@
+The uncovered line indicates an input port named io_msb (most significant bit). To cover it, we should drive both cases where the MSB is 0 and 1. The following assembly generates a positive value (MSB=0) and a negative value (MSB=1), propagates them through ALU operations, and exits. It uses simple sequential instructions without loops or jumps.
+
+assembly
+.section .text
+.global _start
+
+_start:
+    # Drive io_msb = 0 with a small positive value and propagate it
+    li      t0, 1
+    add     t1, t0, zero
+
+    # Drive io_msb = 1 with a negative value (-1 has MSB=1) and propagate it
+    li      t2, -1
+    add     t3, t2, zero
+
+    # Use sign-aware shifts to further exercise MSB-dependent datapaths
+    srai    t4, t2, 31     # remains all 1s; exercises MSB=1 path
+    srai    t5, t0, 31     # becomes 0; exercises MSB=0 path
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000

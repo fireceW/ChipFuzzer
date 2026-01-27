@@ -1,0 +1,42 @@
+{
+  "run_id": "20260127-165154-9c73e6d7",
+  "start_time": "2026-01-27 17:25:39",
+  "modules": [
+    {
+      "module_name": "Bku",
+      "statistics": {
+        "llm_generation_count": 5,
+        "emulator_success_count": 3,
+        "coverage_data": [
+          {
+            "timestamp": 1769504367.3498256,
+            "coverage_percentage": 68.2,
+            "uncovered_lines": 191078,
+            "iteration": 1,
+            "module": "Bku"
+          },
+          {
+            "timestamp": 1769504634.077365,
+            "coverage_percentage": 68.2,
+            "uncovered_lines": 191011,
+            "iteration": 2,
+            "module": "Bku"
+          },
+          {
+            "timestamp": 1769505926.0057023,
+            "coverage_percentage": 68.3,
+            "uncovered_lines": 190677,
+            "iteration": 4,
+            "module": "Bku"
+          }
+        ],
+        "start_time": 1769503928.996549
+      }
+    }
+  ],
+  "summary": {
+    "total_llm_generations": 5,
+    "total_emulator_success": 3,
+    "total_coverage_points": 3
+  }
+}

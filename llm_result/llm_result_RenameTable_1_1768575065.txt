@@ -1,0 +1,97 @@
+
+
+Based on the ternary code you've provided, it seems we're implementing a complex data selection mechanism based on bit tests of various address registers. This looks like a rename table or register multiplexer logic.
+
+Let me create clean RISC-V assembly code for this functionality. I'll follow these principles:
+1. Use proper RISC-V branch instructions (`beq`, `bnez`, etc.)
+2. Use proper register copy format
+3. Keep all logic sequential without unnecessary jumps
+4. Use minimal instructions to achieve the required logic
+5. Follow the format for data selection based on bits in address registers
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Load the register values that we'll be checking
+    # These addresses are illustrative - actual addresses would be filled in a real system
+    lui     t0, 0x1000      # hypothetical base address for t1_wSpec_addr_1
+    lw      t1, 0(t0)       # load t1_wSpec_addr_1
+    
+    lui     t2, 0x1001      # hypothetical base address for t1_wSpec_addr_4
+    lw      t3, 0(t2)       # load t1_wSpec_addr_4
+    
+    lui     t4, 0x1002      # hypothetical base address for t1_wSpec_addr_5
+    lw      t5, 0(t4)       # load t1_wSpec_addr_5
+
+    lui     t6, 0x2000      # base address for all data values
+    
+    # Start with the highest priority selection - check bit 21 of t1_wSpec_addr_1
+    li      t7, 0x200000    # bit 21 mask
+    and     a0, t1, t7
+    bnez    a0, select_21
+    # If bit 21 not set, use default: t1_wSpec_0_data
+    lw      a0, 0x00(t6)    # t1_wSpec_0_data at offset 0
+    
+select_21:
+    li      t7, 0x200000    # bit 21 again
+    and     a1, t1, t7
+    bnez    a1, use_1_data_21
+    lw      a0, 0x00(t6)    # t1_wSpec_0_data at offset 0
+    j       done_21
+use_1_data_21:
+    lw      a0, 0x04(t6)    # t1_wSpec_1_data at offset 4
+done_21:
+
+    # Check bit 18 of t1_wSpec_addr_4
+    li      t7, 0x40000     # bit 18 mask
+    and     a1, t3, t7
+    bnez    a1, use_4_data_18
+    lw      a0, 0x0c(t6)    # t1_wSpec_3_data at offset 12
+    j       done_18
+use_4_data_18:
+    lw      a0, 0x10(t6)    # t1_wSpec_4_data at offset 16
+done_18:
+
+    # Check bit 15 of t1_wSpec_addr_5
+    li      t7, 0x8000      # bit 15 mask
+    and     a1, t5, t7
+    bnez    a1, use_4_data_15
+    lw      a0, 0x0c(t6)    # t1_wSpec_3_data at offset 12
+    j       done_15
+use_4_data_15:
+    lw      a0, 0x10(t6)    # t1_wSpec_4_data at offset 16
+done_15:
+
+    # Check bit 4 of t1_wSpec_addr_1 - lowest priority
+    li      t7, 0x10        # bit 4 mask
+    and     a1, t1, t7
+    bnez    a1, use_1_data_4
+    lw      a0, 0x00(t6)    # t1_wSpec_0_data at offset 0
+    j       done_4
+use_1_data_4:
+    lw      a0, 0x04(t6)    # t1_wSpec_1_data at offset 4
+done_4:
+
+    # Our final value is already in a0
+    # For testing purposes we return 0 - real program would return a0
+    # In a real scenario we'd move the selected value to a0
+    
+    # Exit the program
+    li      gp, 1         # gp=1 indicates successful exit in our test environment
+    li      a7, 93        # syscall exit_group
+    li      a0, 0         # exit code 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+This code:
+1. Loads all the necessary registers with values from memory
+2. Performs bitwise AND operations to test specific bits
+3. Uses proper RISC-V conditional branches (`bnez`, `beqz`)
+4. Selects appropriate data based on bit tests
+5. Maintains the hierarchical priority of bit checks based on your code
+
+Note: The memory addresses are illustrative and would be determined by your actual system. The data values are stored at offsets relative to the base address in t6.

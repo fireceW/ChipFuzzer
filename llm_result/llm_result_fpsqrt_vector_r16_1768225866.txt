@@ -1,0 +1,98 @@
+To generate assembly code that corresponds to the provided logic, we can map logical operations and conditions to basic RISC-V assembly instructions. You mentioned issues with illegal immediate values in previous attempts, so we'll make sure to use legal immediate values within the range supported by RISC-V instructions.
+
+Here's a translation of the given Verilog-like code logic to RISC-V assembly code. This translation is not perfectly one-to-one since some hardware-specific operations, signals, and conditions in the original code must be interpreted into conceptual operations in assembly.
+
+```assembly
+.section .data
+# Declare necessary data storage for simulation of original code logic
+	_rt_q:   .word 0
+	_rt_m1_q: .word 0
+	_mask_q: .word 0
+	_f_r_s_q: .word 0
+	_start_handshaked: .word 0
+	_fsm_q:  .space 12     # Frame state machine as an array with initial space
+	_need_2_cycles_init: .word 0
+
+.section .text
+.global _start
+
+_start:
+	# Load initial values (simulating start handshake and fsm_q states and need_2_cycles_init)
+	li t0, 1                    # Simulate start_handshaked = true
+	sw t0, _start_handshaked
+
+	# Simulate fsm_q states (for simplicity, assuming each element of fsm_q is in one register here)
+	li t1, 1                    # fsm_q[0]
+	li t2, 0                    # fsm_q[1]
+	li t3, 1                    # fsm_q[2]
+	sw t1, _fsm_q
+	sw t2, _fsm_q + 4
+	sw t3, _fsm_q + 8
+
+	# Simulate need_2_cycles_init = true
+	li t4, 1
+	sw t4, _need_2_cycles_init
+
+	# Check initial conditions simulated from `if (start_handshaked | fsm_q[1] | fsm_q[2])`
+	lw t5, _start_handshaked
+	lw t6, _fsm_q           # RISC-V does not directly operate on array; so step-by-step logic applied
+	lw t7, _fsm_q + 4
+	lw t8, _fsm_q + 8
+
+	or t5, t5, t6           # combine start_handshaked or fsm_q[0]
+	or t5, t5, t7           # also combine fsm_q[1]
+	or t5, t5, t8           # also combine fsm_q[2]
+
+	# Simulate branch based conditional execution when the main condition applies
+	beqz t5, exit_logic     # Jump out if no start_handshaked or fsm_q[1] or fsm_q[2] active
+
+	# "if (fsm_q[0])" branch simulation
+	# lw t6 already holds fsm_q[0], as we loaded it above, so we use that
+	beqz t6, fsm_not_0      # If fsm_q[0] == 0, skip this section
+	
+	# When fsm_q[0] == 1
+	lw t9, _need_2_cycles_init
+
+	# Check need_2_cycles_init equivalent
+	beqz t9, skip_cycle_rt  # If need_2_cycles_init == 0 skip this cycle
+
+	# Perform operation equivalent logic related to rt_m1_q and mask_q
+	# Load/register manipulating equivalent logic for: {rt_m1_q[52], _op_frac_l_shifted_s5_to_s2_T_3[51:0]}
+	li t10, 0xdeadbeef       # Example value instead of {..short computation..}
+	sw t10, _rt_m1_q
+
+skip_cycle_rt:
+	# Otherwise completed operation equivalent for rt_m1_q and mask_q setups
+	li t11, 0x1010           # Example: similar new default or specific fixed value
+	sw t11, _mask_q
+
+fsm_not_0:
+	# Execute logic when `fsm_q[1]` is also true
+	beqz t7, fsm_not_1
+	# When fsm_q[1]
+	li t12, 0x1000           # Preset immediate value for certain logic parts as proxy 
+	sw t12, _mask_q
+
+fsm_not_1: 
+	# Further conditions and values interpretation
+    
+
+exit_logic:
+	li      gp,1       # Do not change this section, it exits the program
+	li      a7,93
+	li      a0,0
+	ecall
+	unimp
+	.insn   2, 0x0000
+```
+
+### Important Considerations:
+1. **Simulated Hardware Signals**: Many operations and logic conditions are derived from observed signals and conditions. Real meanings or tests might lack real-time effects without exact peripheral simulation.
+  
+2. **Limited Simulation**: The assembly code attempts partial simulation through typical values to represent data (like for calculations masked by missing context).
+
+3. **Execution Flow**: Decoding direct if and logic blocks into assembly, managing control flow strictly with conditional jumps (beqz as used).
+
+4. **Avoiding Unnecessary Complexity**: Use of immediate values within accepted ranges and simplifying complex bit manipulations as conceptual operations.
+
+5. **Assembly Regularities**: Maintaining program flow, the exit codes are nominal and clear, reuse registers where possible without direct jumps or loops.

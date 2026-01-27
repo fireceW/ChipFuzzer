@@ -1,0 +1,127 @@
+The code fragment you provided is clearly from a Verilog/SystemVerilog hardware RTL (likely part of an FP square‐root unit). It is *not* software, and it is not something a RISC‐V assembly program can “execute” directly. Instead, this logic is part of a synthesized hardware design that operates on signals and flip‐flops (rt_q, rt_m1_q, mask_q, f_r_s_q, etc.) driven by a finite state machine (fsm_q) and control signals (start_handshaked, need_2_cycles_init, etc.).
+
+However, for coverage purposes in a simulation environment, what you can usually do is:
+
+1. Identify which conditions/branches in the RTL are currently not taken (e.g. `fsm_q[0]` with `need_2_cycles_init == 1`, or the path where `fsm_q[1]` is 1, etc.).
+2. Write a test that drives the DUT (device under test) to those states.
+
+Since you asked specifically for a RISC‐V assembly program in the given template, and required it to be simple, sequential, and without loops or jumps, the best we can do is:
+
+- Create a small program that mimics the control/data patterns that would cause these RTL branches to be taken, **as if** the RTL’s registers were mapped to memory‐mapped I/O locations.
+- The actual toggling of `fsm_q`, `start_handshaked`, `need_2_cycles_init`, etc., would need to be handled by your testbench or by a hardware wrapper that interprets these stores and translates them into the proper signal transitions.
+
+Below is a minimal RISC‐V assembly program that:
+- Writes distinct values to some “control” and “data” locations to conceptually exercise:
+  - `fsm_q[0]` path with `need_2_cycles_init == 1`
+  - `fsm_q[1]` path
+  - `fsm_q[2]` path
+- Writes to hypothetical MMIO addresses that you can connect in your simulation environment to the signals:
+  - `start_handshaked`
+  - `fsm_q`
+  - `need_2_cycles_init`
+  - `_op_frac_l_shifted_s5_to_s2_T_3`
+  - `_op_frac_l_shifted_1_T_1`
+  - `exp_is_odd_pre_0_x`
+  - etc.
+
+You will then tie these MMIO writes to your DUT in the test environment so that the Verilog code under test actually sees the corresponding signal patterns and the uncovered branches are executed.
+
+Below is the requested assembly program in your template, with no loops, no branches, and only simple sequential instructions:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 假设若干内存映射寄存器地址(需在测试平台中绑定到对应信号)
+    # 这些地址只是占位符,方便仿真时将其连到 DUT 的控制信号上
+    # 0x80000000 : control register 0 (e.g., start_handshaked)
+    # 0x80000008 : control register 1 (e.g., fsm_q)
+    # 0x80000010 : control register 2 (e.g., need_2_cycles_init)
+    # 0x80000018 : data register 0 (e.g., _op_frac_l_shifted_s5_to_s2_T_3 low bits)
+    # 0x80000020 : data register 1 (e.g., _op_frac_l_shifted_1_T_1 low bits)
+    # 0x80000028 : data register 2 (e.g., exp_is_odd_pre signals packed)
+    # 0x80000030 : trigger register to latch values into rt_q / rt_m1_q / mask_q / f_r_s_q
+
+    # 1) 配置 need_2_cycles_init = 1, fsm_q[0] = 1, start_handshaked = 1
+    #    以激活初始化分支 (包括 need_2_cycles_init 为 1 的路径)
+
+    # a0 <- base address 0x80000000
+    lui     a0, 0x80000
+
+    # start_handshaked = 1  (写 control0)
+    li      t0, 1
+    sd      t0, 0(a0)
+
+    # fsm_q = 1 (仅 bit0=1)  (写 control1)
+    li      t0, 1          # fsm_q[0] = 1
+    sd      t0, 8(a0)
+
+    # need_2_cycles_init = 1  (写 control2)
+    li      t0, 1
+    sd      t0, 16(a0)
+
+    # 提供一些操作数给 op_frac 和 exp_is_odd 相关逻辑
+    # _op_frac_l_shifted_s5_to_s2_T_3 模拟值
+    li      t0, 0x12345678
+    sd      t0, 24(a0)     # data0
+
+    # _op_frac_l_shifted_1_T_1 模拟值
+    li      t0, 0x89abcdef
+    sd      t0, 32(a0)     # data1
+
+    # exp_is_odd_pre_0_3..0_0 打包到一个字中
+    # 比如 {exp_is_odd_pre_0_3, exp_is_odd_pre_0_2, exp_is_odd_pre_0_1, exp_is_odd_pre_0_0} = 4'b1011
+    li      t0, 0b1011
+    sd      t0, 40(a0)     # data2
+
+    # 触发一次操作,让 DUT 根据当前 fsm_q[0]、need_2_cycles_init 等更新
+    li      t0, 1
+    sd      t0, 48(a0)     # trigger
+
+    # 2) 激活 fsm_q[1] 分支
+    # start_handshaked 仍为 1(如需要可以重写)
+
+    # fsm_q = 2 (仅 bit1=1)
+    li      t0, 2          # fsm_q[1] = 1
+    sd      t0, 8(a0)
+
+    # need_2_cycles_init = 0,确保进入“else if (fsm_q[1])”路径
+    li      t0, 0
+    sd      t0, 16(a0)
+
+    # 再触发一次操作,让 DUT 走到 fsm_q[1] 路径
+    li      t0, 1
+    sd      t0, 48(a0)
+
+    # 3) 激活 fsm_q[2] 相关路径 (start_handshaked | fsm_q[1] | fsm_q[2])
+    # 设置 fsm_q = 4 (仅 bit2=1)
+    li      t0, 4          # fsm_q[2] = 1
+    sd      t0, 8(a0)
+
+    # 再次触发,以覆盖 fsm_q[2] 出现在条件中的分支
+    li      t0, 1
+    sd      t0, 48(a0)
+
+    # 到此为止,通过三次不同配置写入,测试平台可使 DUT 走到:
+    # - fsm_q[0] 且 need_2_cycles_init=1 的初始化路径
+    # - fsm_q[1] 的路径
+    # - fsm_q[2] 参与条件的路径
+    # 从而覆盖 rt_q、rt_m1_q、mask_q、f_r_s_q 的各个分支赋值
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Notes:
+
+- This assembly is syntactically correct RISC‐V (RV64) code, has no loops or branches, and is fully executable.
+- To actually achieve RTL coverage, your simulation environment must:
+  - Map the addresses (0x80000000, 0x80000008, etc.) to DUT control signals/registers.
+  - Use the writes to drive `start_handshaked`, `fsm_q`, `need_2_cycles_init`, and the operand signals so that the Verilog branches you showed are taken.
+- If you already have a specific MMIO map for your design, you can replace the placeholder offsets and comments with the exact addresses and semantic mappings, keeping the overall structure of the program the same.

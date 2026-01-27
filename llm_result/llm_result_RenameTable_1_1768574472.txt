@@ -1,0 +1,84 @@
+
+
+.section .data
+.data_register_0:  .word 0x1000
+.data_register_1:  .word 0x2000
+.data_register_2:  .word 0x3000
+.data_register_3:  .word 0x4000
+.data_register_4:  .word 0x5000
+
+.section .text
+.global _start
+
+_start:
+    # Initialize data registers
+    la x1, data_register_0
+    lw x1, (x1)
+    la x2, data_register_1
+    lw x2, (x2)
+    la x3, data_register_2
+    lw x3, (x3)
+    la x4, data_register_3
+    lw x4, (x4)
+    la x5, data_register_4
+    lw x5, (x5)
+
+    # Address setup - simulate bit fields
+    li x6, 0x00200000  # Bit 21 set (t1_wSpec_addr_1)
+    li x7, 0x00100000  # Bit 20 set (t1_wSpec_addr_4)
+    li x8, 0x00080000  # Bit 19 set (t1_wSpec_addr_5)
+    
+    # Process bit 4 selection
+    andi x9, x6, 0x10      # Check bit 4 in t1_wSpec_addr_1
+    bnez x9, .Luse_data1_4
+        mv x10, x1         # Use t1_wSpec_0_data
+        j .Lbit4_done
+    .Luse_data1_4:
+        mv x10, x2         # Use t1_wSpec_1_data
+    .Lbit4_done:
+
+    # Process bit 5 selection
+    andi x9, x8, 0x20      # Check bit 5 in t1_wSpec_addr_5
+    bnez x9, .Luse_data4_5
+        andi x9, x7, 0x20   # Check bit 5 in t1_wSpec_addr_4
+        bnez x9, .Luse_data4_again
+        mv x11, x4         # Use t1_wSpec_3_data
+        j .Lbit5_done
+    .Luse_data4_again:
+    .Luse_data4_5:
+        mv x11, x5         # Use t1_wSpec_4_data
+    .Lbit5_done:
+
+    # Process bit 6 selection
+    andi x9, x8, 0x40      # Check bit 6 in t1_wSpec_addr_5
+    bnez x9, .Luse_data4_6
+        andi x9, x7, 0x40   # Check bit 6 in t1_wSpec_addr_4
+        bnez x9, .Luse_data4_again2
+        mv x12, x4         # Use t1_wSpec_3_data
+        j .Lbit6_done
+    .Luse_data4_again2:
+    .Luse_data4_6:
+        mv x12, x5         # Use t1_wSpec_4_data
+    .Lbit6_done:
+
+    # Process bit 21 selection (near the end of original code)
+    andi x9, x6, 0x200000   # Check bit 21 in t1_wSpec_addr_1
+    bnez x9, .Luse_data1_21
+        mv x13, x1          # Use t1_wSpec_0_data
+        j .Lbit21_done
+    .Luse_data1_21:
+        mv x13, x2          # Use t1_wSpec_1_data
+    .Lbit21_done:
+
+    # Combine results - simple addition of selected values
+    add x14, x10, x11
+    add x15, x12, x13
+    add x16, x14, x15
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li      x17,1
+    li      x16,93
+    li      x10,0
+    ecall
+    unimp
+    .insn   2, 0x0000

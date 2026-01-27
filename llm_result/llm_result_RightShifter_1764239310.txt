@@ -1,0 +1,25 @@
+The uncovered line looks like a hardware port declaration: “input io_msb”. It likely represents the most significant bit (MSB) of a data bus, typically used by arithmetic right-shift units for sign extension and by signed comparisons. To cover this signal, the program should exercise logic that reads the MSB in both cases: MSB=1 (negative value) and MSB=0 (non-negative value). A concise way is to perform arithmetic right shifts (srai) on values with MSB=1 and MSB=0, which forces the design to consume the MSB.
+
+Here is a simple, sequential RISC‐V assembly program that does exactly that, while following your template and avoiding loops and jumps:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Drive io_msb = 1 (negative value) and use it via arithmetic right shift
+    li      t0, -1
+    srai    t1, t0, 1
+
+    # Drive io_msb = 0 (non-negative value) and use it via arithmetic right shift
+    li      t0, 1
+    srai    t1, t0, 1
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```

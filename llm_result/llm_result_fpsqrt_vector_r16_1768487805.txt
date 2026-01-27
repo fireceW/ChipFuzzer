@@ -1,0 +1,55 @@
+下面是根据你给出的错误信息重新整理后的、可编译的 RISC‐V 裸机汇编模板示例。  
+重点改动:  
+- 不再使用 `t7`、`t8` 这类在你当前汇编环境中可能未定义的寄存器别名。  
+- 全部只使用通用寄存器 `x1`–`x31` 中 RISCV psABI 明确要求的别名:`a0`–`a7`、`gp` 等。  
+- 只用简单顺序指令,尽量不包含跳转和循环。  
+- 由于你要覆盖的是硬件 Verilog 代码,本质上需要通过仿真环境驱动信号(start_handshaked、fsm_q 等),这些都不是 CPU 指令能直接操作的寄存器。这里给出的汇编只能在“形式上”作为一个最小的、可执行的程序,剩下的信号驱动需要在 testbench 中完成。  
+
+下面是符合你模板要求、可以直接汇编的 RISC‐V 程序:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 下面这几条只是占位计算,避免空程序
+    # 在你的 testbench 中,可在 CPU 执行到这些指令时,配合外部逻辑
+    # 去拉高 start_handshaked、设置 fsm_q 等,以覆盖 Verilog 代码。
+
+    li      a0, 0x4      # 模拟某种状态值
+    li      a1, 0x8      # 模拟另一种状态值
+    li      a2, 0x1      # 可在 TB 中用作“start_handshaked=1”的触发参考
+    li      a3, 0xC      # 用作迭代次数等的占位
+    li      a4, 0x5
+    li      a5, 0xF
+    li      a6, 0xA
+    li      a7, 0x3      # 注意:a7 也用作 ecall 编号寄存器,后面会重新赋值
+
+    # 稍微做一些组合运算,占位以便在波形里观察寄存器变化
+    add     a0, a0, a1   # a0 = 0x4 + 0x8 = 0xC
+    xor     a1, a2, a3   # a1 = 0x1 ^ 0xC
+    and     a2, a4, a5   # a2 = 0x5 & 0xF
+    or      a3, a6, a7   # a3 = 0xA | 0x3
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp, 1
+    li      a7, 93       # Linux RISC-V exit syscall
+    li      a0, 0        # exit code 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+说明要点:  
+1. 没有使用 `t7`、`t8` 等寄存器别名,避免 “illegal operands `li t7,0x1`” 这类错误。  
+2. 代码是严格的顺序执行,无循环、无分支跳转。  
+3. 若你在仿真环境中将这个汇编程序用作“CPU 模型程序”,可以在 testbench 中:  
+   - 在程序运行到 `_start` 后,通过总线/信号联动来驱动 `start_handshaked`、`fsm_q`、`iter_num_q` 等输入,  
+   - 结合时间顺序来触发 `fsm_q == 4'h4`、`fsm_q != 4'h8`、`finish_ready_i` 为 1 等情况,  
+   - 从而覆盖你给出的那段 Verilog 状态机和寄存器更新逻辑。  
+
+如果你能提供:  
+- 该模块的端口定义(尤其是与 CPU/总线的连接方式),  
+- 以及这个汇编代码如何通过总线寄存器去控制 `start_handshaked`、`finish_ready_i` 等信号,  
+
+我可以在此基础上进一步为你设计一套“写特定 MMIO 寄存器地址的指令序列”,真正驱动 Verilog 状态机走到所有分支,从而实现实际的覆盖。

@@ -1,0 +1,69 @@
+The Verilog fragment describes sequential logic (a small FSM and several registers) that will be synthesized into hardware. To “cover” this code in simulation, the testbench must drive the relevant input signals (`start_handshaked`, `finish_ready_i`, `need_2_cycles_init`, `op_i`, `rm_i`, etc.) so that every branch of the `if` / `else if` conditions and all assignments are triggered at least once.
+
+A plain RISC‐V assembly program cannot directly drive these Verilog signals unless:
+
+1. The Verilog design is memory‐mapped to specific addresses; and  
+2. The assembly uses loads/stores to those addresses to toggle the signals and then lets the clock run in simulation.
+
+Since no memory map or interface scheme is given, the best we can do in assembly is provide a minimal, syntactically correct, linear RISC‐V program that is easy to embed into a co-simulation/test environment. Your testbench or integration logic should then:
+- Map the CPU’s register or memory operations to the DUT inputs/outputs, or  
+- Use this program as a placeholder while your testbench drives the DUT signals directly.
+
+Below is a minimal RISC‐V assembly program in the requested template. It executes a sequence of simple instructions (no loops, no jumps except for exit via `ecall`), and is fully correct and executable under a standard Linux-like RISC‐V environment.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Simple straight-line RISC-V code that can be used in co-simulation
+    # Registers are loaded with constants; testbench can observe these
+    # or map memory locations to DUT inputs if desired.
+
+    li      t0, 0x4        # Example value, could represent fsm_q == 4'h4
+    li      t1, 0x8        # Example value, could represent fsm_q == 4'h8
+    li      t2, 0x1        # Example value, could represent fsm_q == 4'h1
+    li      t3, 0xF        # Example 4-bit mask (0b1111)
+    li      t4, 0xC        # Example iteration constant (4'hC)
+    li      t5, 0x5        # Example iteration constant (4'h5)
+    li      t6, 0x0        # Zero/flag placeholder
+
+    # Optionally, store some values to memory that testbench may map to DUT inputs.
+    # These addresses are examples and must be adapted to your actual memory map.
+
+    la      a0, data_area  # Load address of data_area
+    sw      t0, 0(a0)      # Store possible FSM state value
+    sw      t1, 4(a0)      # Store another FSM state value
+    sw      t2, 8(a0)      # Store yet another FSM state value
+    sw      t3, 12(a0)     # Store mask
+    sw      t4, 16(a0)     # Store iteration value 0xC
+    sw      t5, 20(a0)     # Store iteration value 0x5
+    sw      t6, 24(a0)     # Store zero/flag
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+.section .bss
+    .align 4
+data_area:
+    .space 32
+```
+
+How to use this for coverage:
+
+- In your testbench, connect the RISC‐V core (running this program) to the DUT.
+- Map `data_area` (or specific addresses within it) to DUT control registers or input ports. For example:
+  - Use `data_area+0` to drive `fsm_q` initialization or a control register that ultimately affects `fsm_q`.
+  - Use `data_area+16` (`0xC`) and `data_area+20` (`0x5`) to represent the values written into `iter_num_q` and related logic.
+- Drive `start_handshaked`, `finish_ready_i`, `need_2_cycles_init`, and other control signals from your testbench in such a way that:
+  - `fsm_q` takes value `4'h4` and `(|iter_num_q)` is both true and false (to cover both sides of `fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;`).
+  - `fsm_q != 4'h8` and `finish_ready_i` true/false to cover the `else if (fsm_q != 4'h8 | finish_ready_i)` branch and the following assignments.
+  - `start_handshaked`, `fsm_q[1]`, `fsm_q[2] & (|iter_num_q)` each become true at least once to cover the nested `if` / `else if` in the `iter_num_q` block.
+  - Values for `op_i`, `rm_i`, etc., are driven so that all `out_sign_*_q`, `out_exp_*_q`, `res_is_nan_*_q`, `res_is_inf_*_q`, and `res_is_exact_zero_*_q` registers are assigned.
+
+If you can provide the memory map or the way the CPU interfaces with your DUT, I can refine this assembly so that it writes precise patterns to the exact addresses/signals needed to guarantee coverage for all branches in your Verilog code.

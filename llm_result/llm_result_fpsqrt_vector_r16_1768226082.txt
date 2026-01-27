@@ -1,0 +1,51 @@
+To generate assembly code that tests the given code's logic, we need to map the state machine and variable assignments to a series of register operations. Here is how we can translate this logical flow into assembly instructions:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize variables as registers, for example purpose:
+    li t0, 0x4   # fsm_q = 4'h4
+    li t1, 0x8   # next value for fsm_q
+    li t2, 0    # finish_ready_i = 0
+
+    # Assume other necessary variables are placed into registers
+    li t3, 0x0   # iter_num_q = 0
+    li t4, 0x0   # need_2_cycles_init
+    li t5, 0x0   # op_l_shift_num_0
+    li t6, 0x0   # start_handshaked
+
+    # Start the functional logic
+    # Check `fsm_q == 4'h4`
+    bne t0, t1, not_state_4
+    # `fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;`
+    bnez t3, skip_assign_8
+    li t0, 0x8   # assign 4'h8 to fsm_q
+skip_assign_8:
+    # next power cycle of code...
+
+not_state_4:
+    # Check `fsm_q != 4'h8 | finish_ready_i`
+    beq t0, t1, skip_assign_1
+    beq t2, zero_finish, skip_assign_1  # Equivalent to `| finish_ready_i` check
+    li t0, 0x1   # Assign 4'h1 to fsm_q
+skip_assign_1:
+
+zero_finish:
+    # Add further logic based on original code...
+
+    # Assembly exit logic (do not modify)
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Here, I've mapped the logical checks and assignments linearly to avoid loops and branching whenever possible. I've used the register naming convention (`t0`, `t1`, etc.) for simplicity, assuming that the variables like `fsm_q`, `iter_num_q`, and `finish_ready_i` have pre-assigned or calculated values. Adjust these instructions as necessary if the context or specific operations of your code differ. 
+
+Errors related to `li` instruction often stem from incorrect immediate value specifications, ensuring all the values are valid immediate values that can be directly loaded into registers.
+
+Make sure you adjust the logic according to your need to fully exercise uncovered paths. This representation mimics decision-making as per the provided logic; further elaboration on initialization and loop avoidance is maintained.

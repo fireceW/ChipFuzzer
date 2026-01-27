@@ -1,0 +1,51 @@
+Translating complex high-level behavioral code to assembly code is challenging due to the inherent differences between languages like Verilog and assembly. It is essential to know the context of values being checked and manipulated, especially when dealing with conditions and state machines, such as FSMs. Assembly typically works with very low-level operations and would require specific hardware details and register assignments to properly map logic to executable instructions. 
+
+Additionally, assembly relies heavily on the target architecture, and the code provided seems to be targeting the RISC-V architecture given the `li`, `ecall`, and `.insn` instructions used in the template.
+
+Below is an assembly code approximation based on the given template and typical assumptions about variable handling in assembly. However, keep in mind without precise knowledge about machine state or variable storage (like `fsm_q`, `start_handshaked`, etc.), this can only be an educated guess:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Assuming fsm_q is stored in a register, let's say t0
+    li t0, 4     # Load the value of 4 into t0
+    li t1, 8     # Load the value of 8 into t1
+    li t2, 1     # Load the value of 1 into t2
+    li t3, 0     # Initialize a general-purpose register for use
+
+    # Example check for fsm_q == 4, if true move to logic specific for that condition
+    beq t0, t1, ELSE_FSM_4
+
+    # Assuming start_handshaked is stored in a register, let's say t4
+    li t4, 1    # Load a hypothetical true condition for start_handshaked
+    or t5, t4, t3  # Perform a bitwise OR with other conditions
+    
+    # Check for not equal to 8 and finish_ready_i being true
+    bne t0, t1, FSM_NE_8
+
+FSM_NE_8:
+    move t0, t2   # Set fsm_q to 4'h1
+    j END
+
+ELSE_FSM_4:
+    beq t0, t1, END  # Branch if fsm_q is 4'h4
+    move t0, t2     # If not branching, set fsm_q to 4'h8
+    
+END:
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li gp, 1
+    li a7, 93
+    li a0, 0
+    ecall
+    unimp
+    .insn 2, 0x0000
+```
+
+Few points to ensure compilation:
+1. Ensure no illegal operation codes are present.
+2. Proper branching conditions (like `beq` or `bne`) should reference registers correctly.
+
+Please adapt this according to the actual variable storage and register allocation model you are using on your specific hardware. The correctness also can depend on the initial state assumptions made about registers representing the variables in high-level code.

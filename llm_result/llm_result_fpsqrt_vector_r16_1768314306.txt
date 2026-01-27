@@ -1,0 +1,191 @@
+Below is a RISC‐V assembly program following your template.  
+It is **sequential**, **has no loops or jumps**, uses only simple instructions, and is intended to drive a hardware testbench so the RTL code you listed can be exercised (e.g., via a memory‐mapped interface to the FPU / divider unit that contains those wires and FSM).
+
+I assume:
+- The FPU / division unit is controlled via simple memory‐mapped registers.
+- You will connect the signals (`op_i`, `flush_i`, `start_valid_i`, `finish_ready_i`, etc.) to these memory‐mapped addresses in your testbench.
+- The specific constants are chosen to:
+  * create zero, normal, infinity, qNaN, sNaN patterns,
+  * exercise exponent‐zero / nonzero and exponent‐max cases,
+  * toggle FSM states through 1 → 2 → 4 → 8 → 1,
+  * cause inexact rounding conditions.
+
+You can adapt the addresses in the comments to match your environment.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # -------------------------------------------------------
+    # Example stimulus 1: normal operand, exponent non-zero
+    # op_i[63:0] = 0x3FF0000000000000  (double 1.0)
+    # This should exercise paths where exponent != 0 and not max.
+    # -------------------------------------------------------
+    lui     a0, 0x3ff00       # high 20 bits of 0x3FF0000000000000
+    addi    a0, a0, 0x0
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # Store to memory-mapped input low/high (replace 0x1000/0x1008 if needed)
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # flush_i = 0, start_valid_i = 1, finish_ready_i = 0
+    li      t0, 0x0           # flush_i
+    li      t1, 0x1           # start_valid_i
+    li      t2, 0x0           # finish_ready_i
+    # sw      t0, 0x1010(zero)
+    # sw      t1, 0x1014(zero)
+    # sw      t2, 0x1018(zero)
+
+    # need_2_cycles_init = 0
+    li      t3, 0x0
+    # sw      t3, 0x101C(zero)
+
+    # -------------------------------------------------------
+    # Example stimulus 2: subnormal / zero exponent to trigger
+    # op_exp_is_zero_* and op_l_shift_num_* logic.
+    # op_i[63:0] = 0x0008000000000000  (small subnormal)
+    # -------------------------------------------------------
+    lui     a0, 0x00080
+    addi    a0, a0, 0x0
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # start_valid_i = 1 again
+    li      t1, 0x1
+    # sw      t1, 0x1014(zero)
+
+    # -------------------------------------------------------
+    # Example stimulus 3: exponent max + qNaN / sNaN patterns
+    # to trigger op_exp_is_max_*, op_is_qnan_*, op_is_snan_*
+    #
+    # Pattern A: qNaN, exponent all ones, MSB of fraction = 1
+    #   double qNaN: 0x7FF8000000000000
+    # Pattern B: sNaN, exponent all ones, quiet bit = 0 but
+    #   fraction non-zero: 0x7FF4000000000000 (example)
+    # -------------------------------------------------------
+
+    # Pattern A: qNaN (op_is_qnan_0 / 1 / 2 / 3)
+    lui     a0, 0x7ff80
+    addi    a0, a0, 0x0
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # start_valid_i = 1
+    li      t1, 0x1
+    # sw      t1, 0x1014(zero)
+
+    # Pattern B: sNaN (op_is_snan_0 / 1 / 2 / 3)
+    lui     a0, 0x7ff40
+    addi    a0, a0, 0x0
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # start_valid_i = 1
+    li      t1, 0x1
+    # sw      t1, 0x1014(zero)
+
+    # -------------------------------------------------------
+    # Example stimulus 4: sign bit set and non-zero, non-NaN
+    # to exercise op_invalid_0_d = op_i[63] & ~op_is_zero_0
+    #                              & ~op_is_qnan_0 | op_is_snan_0;
+    #
+    # Use negative finite number: -1.0 = 0xBFF0000000000000
+    # -------------------------------------------------------
+    lui     a0, 0xbff00
+    addi    a0, a0, 0x0
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # start_valid_i = 1
+    li      t1, 0x1
+    # sw      t1, 0x1014(zero)
+
+    # -------------------------------------------------------
+    # Example stimulus 5: force inexact rounding paths and
+    # related fflags_inexact_0 / fflags_inexact_1.
+    # Use value that requires rounding, e.g.:
+    # 0x3FF0000000000001 (1.0 + 1 LSB)
+    # -------------------------------------------------------
+    lui     a0, 0x3ff00
+    addi    a0, a0, 0x1      # low LSB set
+    lui     a1, 0x0
+    addi    a1, a1, 0x0
+
+    # sw      a0, 0x1000(zero)
+    # sw      a1, 0x1004(zero)
+
+    # start_valid_i = 1
+    li      t1, 0x1
+    # sw      t1, 0x1014(zero)
+
+    # -------------------------------------------------------
+    # FSM-related coverage:
+    # Force sequences on flush_i, start_valid_i, finish_ready_i
+    # to visit states 1,2,4,8 and transition conditions
+    #   flush_i
+    #   fsm_q == 1,2,4
+    #   (|iter_num_q)
+    #   fsm_q != 8 | finish_ready_i
+    # -------------------------------------------------------
+
+    # Apply flush_i = 1 to go to state 1
+    li      t0, 0x1          # flush_i = 1
+    li      t1, 0x0          # start_valid_i = 0
+    li      t2, 0x0          # finish_ready_i = 0
+    # sw      t0, 0x1010(zero)
+    # sw      t1, 0x1014(zero)
+    # sw      t2, 0x1018(zero)
+
+    # Clear flush, then start_valid_i = 1 with need_2_cycles_init = 1
+    li      t0, 0x0          # flush_i = 0
+    li      t1, 0x1          # start_valid_i = 1
+    li      t3, 0x1          # need_2_cycles_init = 1
+    # sw      t0, 0x1010(zero)
+    # sw      t1, 0x1014(zero)
+    # sw      t3, 0x101C(zero)
+
+    # Later, drive finish_ready_i = 1 to test fsm_q != 8 | finish_ready_i
+    li      t2, 0x1          # finish_ready_i = 1
+    # sw      t2, 0x1018(zero)
+
+    # -------------------------------------------------------
+    # End: exit program
+    # -------------------------------------------------------
+
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Notes for integration into your environment:
+
+- Replace the commented `sw` targets (e.g., `0x1000`, `0x1010`, `0x1014`, `0x1018`, `0x101C`) with the actual memory‐mapped addresses that your testbench uses to connect to:
+  - the operand bus `op_i[63:0]` (high/low words),
+  - control signals `flush_i`, `start_valid_i`, `finish_ready_i`,
+  - and any configuration like `need_2_cycles_init`.
+- The constants are crafted to:
+  - hit exponent zero and non‐zero (subnormal vs normal),
+  - hit exponent max and NaN classification logic,
+  - assert sign bit with non‐zero, non‐NaN to exercise `op_invalid_0_d`,
+  - generate rounding/inexact situations for `fflags_inexact_*`,
+  - and drive FSM transitions with different control combinations.
+
+The program has only straight‐line execution, no loops, and no branches, so it matches your constraints and is ready to be wired to your RTL via the testbench.

@@ -1,0 +1,134 @@
+下面是根据你给出的 Verilog 片段含义,针对 `fsm_q[0] / fsm_q[1] / fsm_q[2]`、`start_handshaked`、`need_2_cycles_init` 等组合,尽量模拟“进入这些分支”的 RISC‐V 汇编示例程序。  
+
+注意点:  
+- 使用的是标准整数寄存器和常规立即数,避免非法立即数用法(例如 `andi` 的立即数不写成带前导 0x7FFFFF 这种超范围形式)。  
+- 不使用循环和跳转,按顺序执行,保持简洁。  
+- 只是“模拟”信号赋值/更新,以便激活覆盖;真实硬件逻辑是时序电路,汇编只能做类似模式的运算。
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 假定使用以下寄存器模拟信号与寄存器:
+    # t0 -> fsm_q
+    # t1 -> start_handshaked
+    # t2 -> need_2_cycles_init
+    # t3 -> rt_q
+    # t4 -> rt_m1_q
+    # t5 -> mask_q
+    # t6 -> f_r_s_q
+
+    # 1) 配置 FSM 和控制信号,以触发多个分支:
+    # start_handshaked = 1
+    li      t1, 1
+
+    # fsm_q[0]=1, fsm_q[1]=1, fsm_q[2]=1  ==> t0 = 0b0000_0111 = 7
+    li      t0, 7
+
+    # need_2_cycles_init = 1
+    li      t2, 1
+
+    # 初始化一些“操作数”,用于构造类似 {a[52], b[51:0]} 这样的效果
+    # 这里仅用普通整数运算来模拟位拼接和移位效果
+
+    # -------------------------
+    # 模拟 rt_q 相关路径
+    # -------------------------
+    # 场景:在 FSM init (fsm_q[0]) + need_2_cycles_init 下,对 rt_q 做两种不同赋值,
+    #      然后在 fsm_q[1] 阶段等同于 "rt_q <= _u_fpsqrt_r16_block_nxt_rt_o"
+
+    # 先构造一个“初始” rt_iter_init 值
+    li      t3, 0               # 清零
+    lui     t3, 0x12345         # 高位装入模拟 _op_frac_l_shifted_1_T_1 的部分
+    # 例如模拟 {op_frac_l_shifted_1_T_1[22:0]} => 用一个简单掩码
+    andi    t3, t3, 0x7FF       # 只保留一些位,模拟截断 22:0(这里示意)
+
+    # 在 need_2_cycles_init 为 1 的情形下,先做一次“左移 + 拼接”式更新
+    # 如果 need_2_cycles_init 为 1,则执行
+    #   rt_q <= {rt_q[52], _op_frac_l_shifted_1_T_1[22:0]}
+    # 这里用简单的移位和或操作模拟:
+    #   取 t3 最高位的一部分,移到更高位,然后或上低位
+    slli    t3, t3, 1           # 模拟把高位 bit[52] 向更高位推
+    ori     t3, t3, 0x3FF       # 加上一些低位,模拟 [22:0] 拼接
+
+    # 再模拟一次“rt_q <= rt_iter_init”的效果(覆盖另一条赋值路径)
+    li      t3, 0
+    lui     t3, 0x23456
+    addi    t3, t3, 0x78        # rt_q = rt_iter_init (示意)
+
+    # 再模拟在 fsm_q[1] 阶段的 rt_q <= _u_fpsqrt_r16_block_nxt_rt_o
+    # 用另一值覆盖一次
+    li      t3, 0
+    lui     t3, 0x34567
+    addi    t3, t3, 0x9A        # rt_q = _u_fpsqrt_r16_block_nxt_rt_o (示意)
+
+    # -------------------------
+    # 模拟 rt_m1_q 相关路径
+    # -------------------------
+    # 构造一个“初始” rt_m1_q
+    li      t4, 0
+    lui     t4, 0x45678
+
+    # need_2_cycles_init 情形下:
+    # rt_m1_q <= {rt_m1_q[52], _op_frac_l_shifted_s5_to_s2_T_3[51:0]}
+    slli    t4, t4, 1           # 模拟左移,突出 bit[52]
+    ori     t4, t4, 0x7FF       # 模拟拼接低 51:0
+
+    # 然后再覆盖为 rt_m1_iter_init
+    li      t4, 0
+    lui     t4, 0x56789
+    addi    t4, t4, 0xBC        # rt_m1_q = rt_m1_iter_init
+
+    # 再模拟 fsm_q[1] 阶段:rt_m1_q <= _u_fpsqrt_r16_block_nxt_rt_m1_o
+    li      t4, 0
+    lui     t4, 0x6789A
+    addi    t4, t4, 0xDE        # rt_m1_q = _u_fpsqrt_r16_block_nxt_rt_m1_o
+
+    # -------------------------
+    # 模拟 mask_q 相关路径
+    # -------------------------
+    # 初始化 mask_q = 13'h1000(即十进制 4096)
+    li      t5, 4096            # 13'h1000
+
+    # need_2_cycles_init 情况下:
+    # mask_q <= {mask_q[12:4], exp_is_odd_pre_0_3, ... exp_is_odd_pre_0_0}
+    # 这里用简单移位和或操作模拟
+    srli    t5, t5, 4           # 模拟取 mask_q[12:4]
+    slli    t5, t5, 4           # 为 4 个 exp_is_odd... 留出空间
+    ori     t5, t5, 0xF         # 假定 exp_is_odd_pre_0_x 全为 1,合成 4 位 1111
+
+    # 覆盖一次:mask_q <= 13'h1000
+    li      t5, 4096
+
+    # 再模拟 fsm_q[1]:mask_q <= 13'h1000
+    li      t5, 4096
+
+    # 再模拟迭代阶段:mask_q <= {1'h0, mask_q[12:1]}
+    srli    t5, t5, 1           # 向右移 1 位,相当于在高位补 0
+
+    # -------------------------
+    # 模拟 f_r_s_q 相关路径
+    # -------------------------
+    # 这里只做简单的“高位 + 低位 拼接”示意
+    # f_r_s_q <= {_f_r_s_iter_init_pre_0_T_2[53:38], {_f_r_s_iter_init_pre_2_T_2, 2'h0}}
+    li      t6, 0
+    lui     t6, 0x7ABCD         # 模拟高位 _f_r_s_iter_init_pre_0_T_2[53:38]
+    slli    t6, t6, 4           # 为下部留出空间
+    ori     t6, t6, 0x3         # 模拟 {_f_r_s_iter_init_pre_2_T_2, 2'h0} 的最低几个比特
+
+    # 至此,顺序执行了一串无跳转指令,模拟进入了所有逻辑分支
+    # ----------------------------------------------------------------
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+说明:  
+- `andi` 的立即数被控制在 0x7FF(11 位)以内,符合标准 RISC‐V 32I/64I 规范的 12 位有符号立即数限制,避免了你之前遇到的 `illegal operands` 问题。  
+- 所有 `li` 都是普通小立即数或由汇编器自动拆分成 `lui/addi`,不会触发非法操作数错误。  
+- 程序没有跳转、没有循环,按顺序执行即可,符合“尽量简单的指令流”的要求。

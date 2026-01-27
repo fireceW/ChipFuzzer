@@ -1,0 +1,24 @@
+The uncovered line appears to be a hardware description (Verilog/SystemVerilog) port declaration:
+- input io_msb: an input signal intended to carry the most significant bit (MSB) of a data path or bus.
+
+To conceptually “cover” this in assembly, we can simulate toggling the MSB by manipulating a register with a mask for the MSB (0x80000000). The following RISC-V assembly performs a simple, sequential set and clear of the MSB without loops or jumps, then exits.
+
+'''assembly
+.section .text
+.global _start
+
+_start:
+    #汇编程序去执行 uncovered code
+    li      t0, 0              # baseline value
+    lui     t1, 0x80000        # t1 = 0x80000000 (MSB mask for 32-bit word)
+    xor     t0, t0, t1         # set MSB (simulate io_msb=1)
+    xor     t0, t0, t1         # clear MSB (simulate io_msb=0)
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+'''

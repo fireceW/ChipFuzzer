@@ -1,0 +1,20 @@
+{
+  "run_id": "20260127-172234-2457e809",
+  "start_time": "2026-01-27 17:22:48",
+  "modules": [
+    {
+      "module_name": "Bku",
+      "statistics": {
+        "llm_generation_count": 0,
+        "emulator_success_count": 0,
+        "coverage_data": [],
+        "start_time": 1769505768.6688576
+      }
+    }
+  ],
+  "summary": {
+    "total_llm_generations": 0,
+    "total_emulator_success": 0,
+    "total_coverage_points": 0
+  }
+}

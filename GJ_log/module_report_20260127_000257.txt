@@ -1,0 +1,125 @@
+ChipFuzzer 多模块测试报告
+生成时间: 2026-01-27 00:02:57
+模块列表: ['L2TLB', 'L1CohMetaArray', 'L1FlagMetaArray', 'L1FlagMetaArray_1', 'LoadQueueRAW', 'EntriesVlduVstuVseglduVsegstu', 'BusyTable', 'SbufferData', 'EntriesFaluFcvtF2vFmacFdiv', 'WayLookup', 'MutiLevelPrefetchFilter', 'VSMergeBufferImp', 'IBuffer', 'PrefetchFilter', 'FloatFMA', 'MEFreeList', 'RenameTable_3', 'TIMER', 'SinkC', 'VirtualLoadQueue', 'Sbuffer', 'StreamBitVectorArray', 'VSegmentUnit', 'TLPMA', 'OthersEntry_150', 'EntriesAluBrhJmpI2fVsetriwiVsetriwvfI2v', 'BitmapCache', 'OthersEntry_164', 'OthersEntry_104', 'OthersEntry_120', 'OthersEntry_88', 'StoreMisalignBuffer', 'EntriesLdu', 'LoadQueueRAR', 'Permutation', 'BlockCipherModule', 'FauFTB', 'EntriesFaluFmacFdiv', 'VecExcpDataMergeModule', 'Predictor', 'EntriesAluCsrFenceDiv', 'ICacheReplacer', 'SplittedSRAM_1', 'OthersEntry_136', 'EntriesFaluFmac', 'DataModule__16entry_16', 'TLDebugModuleInner', 'PrefetchQueue', 'BusyTable_1', 'TraceBuffer', 'MainPipe', 'VlBusyTable', 'TLPLIC', 'Directory_3', 'SinkC_4', 'EntriesAluMulBkuBrhJmp', 'FpRegFilePart0', 'FpRegFilePart1', 'FpRegFilePart3', 'FpRegFilePart2', 'StrideMetaArray', 'VMask', 'StdFreeList_3', 'SinkC_2', 'RASStack', 'AgeDetector_9', 'AgeDetector_13', 'Slice_3', 'PrefetchReqBuffer', 'ActiveGenerationTable', 'StoreUnit', 'ExceptionGen', 'MissEntry', 'TLToAXI4', 'VfRegFilePart1', 'VfRegFilePart3', 'VfRegFilePart2', 'VfRegFilePart0', 'DataModule__16entry', 'AXI4Deinterleaver', 'PatternHistoryTable', 'MainPipe_1', 'OffsetScoreTable_1', 'OthersEntryVecMem', 'OthersEntryVecMem_14', 'OthersEntry_80', 'SRT16Divint_6', 'BusyTable_2', 'OthersEntry_94', 'EnqEntry_30', 'OthersEntry_108', 'EnqEntry_20', 'FTBBank', 'OthersEntry_64', 'OthersEntry_48', 'OthersEntry_32', 'VSipModule', 'Rename', 'TLBFA_2', 'OthersEntry_24', 'MemBlock', 'OthersEntry', 'ICacheMainPipe', 'TLBFA_1', 'TLBNonBlock', 'EnqEntry_10', 'EnqEntry_8', 'EnqEntry_14', 'OthersEntry_16', 'EnqEntry_12', 'EnqEntryVecMem', 'EnqEntryVecMem_2', 'TLBFA', 'EnqEntry_18', 'EnqEntry_16', 'IssueQueueVfmaVialuFixVimacVppuVfaluVfcvtVipuVsetrvfwvf', 'SyncDataModuleTemplate__64entry_4', 'IssueQueueVfmaVialuFixVfalu', 'AgeDetector_15', 'StdFreeList_2', 'OthersEntry_116', 'OthersEntry_144', 'OthersEntry_186', 'SQData8Module', 'SRT16DividerDataModule', 'PTW', 'SRT16Divint_4', 'GrantBuffer', 'TLBFA_3', 'VectorFloatDividerR64', 'OthersEntry_166', 'FastArbiter_7', 'TLB', 'AgeDetector_21', 'SipModule', 'Slice_4', 'NewIFU', 'fpsqrt_vector_r16', 'OthersEntry_242', 'PTWFilterEntry', 'SRT16Divint', 'FreeList_5', 'FreeList_3', 'AtomicsUnit', 'PTWFilter', 'UncacheEntry_7', 'MvipModule', 'BankedDataArray', 'UncacheEntry_6', 'HvipModule', 'UncacheEntry_1', 'UncacheEntry_3', 'UncacheEntry_5', 'UncacheEntry_4', 'UncacheEntry_2', 'Uncache', 'PrefetchQueue_1', 'OthersEntry_138', 'OthersEntry_172', 'RegCacheTagModule', 'OthersEntry_152', 'VfofBuffer', 'CounterFilter', 'TLBNonBlock_1', 'Slice_2', 'DataModule__64entry_16', 'PipelineRegModule_2', 'SyncDataModuleTemplate__64entry', 'OthersEntry_90', 'VLSplitBufferImp', 'RegCacheTagModule_1', 'RequestBuffer', 'MSHR_64', 'OthersEntry_200', 'RegCacheDataModule', 'IssueQueueFaluFcvtF2vFmacFdiv', 'IssueQueueFaluFmacFdiv', 'PMPChecker_12', 'WbDataPath', 'NewPipelineConnectPipe_37', 'MSHR_32', 'SnapshotGenerator_6', 'RegCacheDataModule_1', 'CVT32', 'StridePF', 'SQAddrModule', 'IssueQueueVlduVstuVseglduVsegstu', 'IssueQueueVlduVstu', 'SQAddrModule_1', 'IntRegFilePart2', 'IntRegFilePart1', 'IntRegFilePart0', 'OthersEntry_106', 'IntRegFilePart3', 'OthersEntryVecMem_2', 'IssueQueueVfdivVidiv', 'OthersEntry_82', 'OthersEntry_122', 'OthersEntryVecMem_16', 'RegCacheAgeDetector', 'VlRFReadArbiter', 'skidBufferConnect', 'V0RFReadArbiter', 'VIntMisc64b', 'RequestArb', 'OthersEntry_96', 'NewCSR', 'OthersEntry_110', 'DelayReg_18', 'Slice_1', 'Frontend', 'Slice', 'MissQueue', 'VfRFReadArbiter', 'SnapshotGenerator_5', 'FpRFReadArbiter', 'FreeList_4', 'WrBypass_25', 'Directory', 'Directory_1', 'FP_INCVT', 'ITTage', 'EnqEntry_4', 'SnapshotGenerator_4', 'MSHRBuffer_1', 'EnqEntry', 'EnqEntry_6', 'SyncDataModuleTemplate__1024entry_1', 'CVT16', 'SieModule', 'fpsqrt_r16', 'Trace', 'MvienModule', 'VLSplitPipelineImp', 'OthersEntry_34', 'Reduction', 'VSSplitPipelineImp', 'HvienModule', 'VSieModule', 'SinkA_4', 'RegionWays', 'OffsetScoreTable', 'IntRFReadArbiter', 'FloatDividerR64', 'TopDownMonitor', 'SplittedSRAMTemplate_2', 'OthersEntry_50', 'IssueQueueFaluFmac', 'CountModule', 'VTypeBuffer', 'OthersEntry_66', 'IntFile', 'SinkA_2', 'OthersEntry_188', 'MSHRBuffer', 'CaptureUpdateChain_1', 'TemporalPrefetch', 'AXI4Xbar', 'StoreExceptionBuffer', 'IssueQueueStaMou', 'RVCExpander', 'TLXbar_7', 'FTB', 'FreeList_6', 'FreeList', 'MSHR', 'PTWFilterEntry_1', 'RegCacheAgeDetector_1', 'DelayReg', 'IssueQueueStdMoud', 'LqExceptionBuffer', 'IPrefetchPipe', 'HPTW', 'JumpUnit', 'OthersEntry_28', 'BranchUnit', 'SoCMisc', 'VlRegFile', 'OthersEntry_20', 'DuplicatedTagArray', 'VIMac64b', 'Og2ForVector', 'DataStorage_3', 'SnapshotGenerator_14', 'NewPipelineConnectPipe_29', 'ClosePathFloatAdderF64WidenPipeline', 'TLXbar_8', 'OthersEntry_244', 'Estimate7', 'CompressUnit', 'CtrlUnit_1', 'DretEventModule', 'L2Directory_2', 'TageTable_3', 'OthersEntry_44', 'DelayReg_22', 'TLXbar_4', 'AgeDetector_19', 'CaptureChain', 'V0RegFilePart0', 'VCVT_8', 'SplittedSRAM', 'OthersEntry_118', 'DelayReg_16', 'LazyModule', 'RRArbiterInit_13', 'RegCache', 'PreDecode', 'V0RegFilePart1', 'WrBypass_24', 'SyncDataModuleTemplate__1024entry', 'L2DataStorage_3', 'PMAEntryHandleModule', 'PTWNewFilter', 'VSSplitBufferImp', 'SretEventModule', 'RegCacheAgeTimer', 'Prefetcher', 'XSTop', 'MSHRCtl', 'PTWRepeaterNB', 'AXI4IntrGenerator', 'SliceCtrl', 'LqPAddrModule', 'CLZ', 'RRArbiterInit_14', 'RequestBuffer_4', 'Backend', 'AXI4DummySD', 'DatamoduleResultBuffer', 'CSR', 'AXI4IdIndexer_2', 'TageTable_1', 'TLXbar_1', 'PMPChecker', 'VIntFixpAlu64b', 'ICacheDataArray', 'FMA', 'RRArbiterInit_8', 'VFMA', 'BusPerfMonitor', 'L2DataStorage_2', 'OthersEntry_202', 'SourceB', 'RegCacheAgeTimer_1', 'DelayQueue_1', 'DelayQueue', 'MNretEventModule', 'lzc', 'I8DivNr4', 'LatchFastArbiter_6', 'TLToAXI4_1', 'FCVT', 'InterruptFilter', 'RRArbiterInit_9', 'WrBypass_33', 'FrontendTrigger', 'NewPipelineConnectPipe_34', 'RenameTableWrapper', 'GatedSplittedSRAM', 'SMSTrainFilter', 'MretEventModule', 'MStatusModule', 'SourceC_4', 'VFDivSqrt', 'BankBinder_1', 'OthersEntry_174', 'FreeList_1', 'IssueQueueAluCsrFenceDiv', 'IssueQueueAluMulBkuBrhJmp', 'BusErrorUnit', 'SplittedSRAM_3', 'ICacheCtrlUnit', 'IssueQueueAluBrhJmpI2fVsetriwiVsetriwvfI2v', 'BusyTable_3', 'XSCore', 'NewPipelineConnectPipe_14', 'MSHRAlloc', 'SourceD', 'MieModule', 'MbistPipeSc_3', 'IssueQueueLdu', 'L2Directory_3', 'VFAlu', 'RedirectGenerator', 'VIDiv', 'ITTageTable_4', 'NewPipelineConnectPipe_35', 'MbistPipeL2Prefetcher', 'SRAMTemplate_160', 'TLWidthWidget_2', 'DecodeStage', 'WrBypass_16', 'RequestBuffer_2', 'DataModule__64entry', 'TageTable', 'WrBypass', 'MedelegModule', 'TageTable_2', 'TopDownMonitor_1', 'TLXbar_9', 'AXI4ToTL', 'Bku', 'LatchFastArbiter_2', 'VIPU', 'MulUnit', 'VPPU', 'VIMacU', 'ITTageTable_3', 'WritebackEntry_15', 'SRAMTemplate_149', 'ClosePathF32WidenF16MixedPipeline', 'AXI4Fragmenter', 'ShiftLeftPriorityWithLZDResult', 'FloatAdderF32F16MixedPipeline', 'SplittedSRAM_2', 'LatchFastArbiter_1', 'AXI4UART', 'GatedSplittedSRAM_2', 'AgeDetector_38', 'Arbiter1_L2TLBImp_Anon', 'DataModule__16entry_20', 'MbistPipeIttage_3', 'MbistPipeIttage_4', 'SnapshotGenerator_2', 'RAS', 'SourceA', 'FTBEntryGen', 'SCTable_3', 'TLBNonBlock_2', 'TLDebugModuleOuter', 'FastArbiter_32', 'MemTrigger_3', 'VSSplitImp', 'CtrlUnit', 'DebugTransportModuleJTAG', 'DcsrModule', 'SourceC_2', 'ProbeQueue', 'Composer', 'FastArbiter_31', 'FloatAdderF32WidenF16MixedPipeline', 'MbistPipeSc_2', 'AgeDetector', 'CSRPermitModule', 'RealWBCollideChecker_1', 'GatedSplittedSRAM_1', 'TLCacheCork', 'BusPerfMonitor_1', 'IntToFP_3', 'PMPEntryHandleModule', 'SplittedSRAM_5', 'VTypeGen', 'FDivSqrt', 'ClosePathF16Pipeline', 'WritebackEntry', 'WritebackEntry_3', 'FloatAdderF64Pipeline', 'VSstatusModule', 'SpfctlModule', 'SplittedSRAMTemplate_23', 'RefillBuffer', 'DelayReg_19', 'FloatAdderF64WidenPipeline', 'VfRFWBCollideChecker']
+运行模式: fresh
+每模块最大尝试次数: 10
+
+
+================================================================================
+模块测试报告: L2TLB
+================================================================================
+开始时间: 2026-01-27 00:02:59
+结束时间: 2026-01-27 00:49:36
+完成状态: max_iterations
+执行次数: 10
+初始未覆盖行数: 1162
+最终未覆盖行数: 1162
+本次覆盖行数: 0
+
+--- 初始未覆盖代码行 (1162 行) ---
+  %000000       : _cache_io_resp_bits_hit & _cache_io_resp_bits_isHptwReq
+  %000000         | (_cache_io_resp_bits_hit
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  ... 还有 1112 行
+
+--- 最终未覆盖代码行 (1162 行) ---
+  %000000       : _cache_io_resp_bits_hit & _cache_io_resp_bits_isHptwReq
+  %000000         | (_cache_io_resp_bits_hit
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  ... 还有 1112 行
+================================================================================
+

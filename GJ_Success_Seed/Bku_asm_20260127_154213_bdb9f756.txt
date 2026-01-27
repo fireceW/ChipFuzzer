@@ -1,0 +1,3 @@
+本测试用例主要覆盖了 Bku 模块。
+该用例成功提升了全局代码覆盖率，减少了 204 行未覆盖代码。
+新覆盖的代码包括：%000000       if (freeReq_next_nextVec_3_r & _enqP...、%000000         freeList_5 <= _freeList_T_39;、%000000               : entryCanEnqSeq_4_8 ? io_en... 等。

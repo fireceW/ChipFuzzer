@@ -1,0 +1,125 @@
+ChipFuzzer 多模块测试报告
+生成时间: 2026-01-26 22:33:50
+模块列表: ['L2TLB', 'LogPerfEndpoint']
+运行模式: continue
+每模块最大尝试次数: 10
+
+
+================================================================================
+模块测试报告: L2TLB
+================================================================================
+开始时间: 2026-01-26 22:34:00
+结束时间: 2026-01-26 23:10:19
+完成状态: max_iterations
+执行次数: 10
+初始未覆盖行数: 1162
+最终未覆盖行数: 1162
+本次覆盖行数: 0
+
+--- 初始未覆盖代码行 (1162 行) ---
+  %000000       : _cache_io_resp_bits_hit & _cache_io_resp_bits_isHptwReq
+  %000000         | (_cache_io_resp_bits_hit
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  ... 还有 1112 行
+
+--- 最终未覆盖代码行 (1162 行) ---
+  %000000       : _cache_io_resp_bits_hit & _cache_io_resp_bits_isHptwReq
+  %000000         | (_cache_io_resp_bits_hit
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  %000000         if (`ASSERT_VERBOSE_COND_)
+  %000000         if (`STOP_COND_)
+  %000000           xs_assert_v2(`__FILE__, `__LINE__);
+  ... 还有 1112 行
+================================================================================
+

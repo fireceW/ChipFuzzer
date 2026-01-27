@@ -1,0 +1,24 @@
+.section .text
+.global _start
+
+_start:
+    # 将数据的最高位(MSB)置为1并提取该位,模拟 io_msb = 1
+    lui     t0, 0x80000        # t0 = 0x80000000 (MSB=1)
+    srli    t1, t0, 31         # t1 = io_msb = 1
+
+    # 将数据的最高位(MSB)置为0并提取该位,模拟 io_msb = 0
+    lui     t2, 0x7ffff        # t2 = 0x7ffff000
+    addi    t2, t2, 0xfff      # t2 = 0x7fffffff (MSB=0)
+    srli    t3, t2, 31         # t3 = io_msb = 0
+
+    # 简单使用结果,保持顺序执行
+    or      t4, t1, t3         # t4 = 1
+    add     gp, t4, zero       # 将结果放入gp,顺序执行,无跳转
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000

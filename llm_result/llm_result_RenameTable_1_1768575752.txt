@@ -1,0 +1,64 @@
+
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Trigger various conditions for spec_table and arch_table
+
+    # Prepare registers to simulate different conditions for spec_table
+    # Setting t1_wSpec_addr_5[32], [33] and others by loading specific values
+    # For RV64 systems, but adapting for RV32 with immediate shifts
+
+    # Simulate t1_wSpec_addr_5[32] = 1 (bit 0 of higher 32 bits)
+    lui t5, 0x1
+    slli t5, t5, 32-12    # Adjust for bit 32 (high bits in RV32)
+    # Simulate t1_wSpec_5_data
+    li t6, 0x12345678
+
+    # Simulate t1_wSpec_addr_4[33] = 1 (bit 1 of higher 32 bits)
+    lui t3, 0x2
+    slli t3, t3, 32-12
+    # Simulate t1_wSpec_4_data
+    li t4, 0x87654321
+
+    # Simulate t1_wSpec_addr_1[26] = 1
+    li t1, (1 << 26)
+    # Simulate t1_wSpec_1_data and t1_wSpec_0_data
+    li t2, 0xAAAA
+    li t0, 0x5555
+
+    # Trigger multiple conditions for spec_table branches via ALU operations
+    add a0, t5, t6
+    sub a1, t3, t4
+    xor a2, t1, t2
+    and a3, t0, t6
+    or a4, a2, a3
+
+    # Cover arch_table_0 conditions by simulating port writes
+    # Port 5 valid
+    li t0, 1
+    li t1, 0
+    li t2, 0xDEADBEEF
+    # Store to arch_table_0 via port5
+    sw t2, 0x0(sp)
+    # Port 4 valid (simulate by different regs)
+    li t0, 1
+    li t1, 0
+    li t2, 0xCAFEBABE
+    sw t2, 0x4(sp)
+    # Port 3 valid
+    li t0, 1
+    li t1, 0
+    li t2, 0x98765432
+    sw t2, 0x8(sp)
+
+    # Exit program cleanly
+    li gp, 1
+    li a7, 93
+    li a0, 0
+    ecall
+    unimp
+    .insn 2, 0x0000
+```

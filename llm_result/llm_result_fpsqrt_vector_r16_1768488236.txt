@@ -1,0 +1,89 @@
+The code snippet you pasted is RTL (Verilog/SystemVerilog), not machine code. It describes behavior of internal registers (`rt_q`, `rt_m1_q`, `mask_q`, `f_r_s_q`) under various control signals (`start_handshaked`, `fsm_q`, `need_2_cycles_init`, etc.).  
+
+To “cover” those lines in simulation, you need to drive the RTL signals so that:
+
+- The `if (start_handshaked | fsm_q[1] | fsm_q[2])` conditions are true.
+- The `if (fsm_q[0])` and `else if (fsm_q[1])` branches are both taken in different cycles.
+- `need_2_cycles_init` is asserted at least once.
+- The data paths that assign:
+  - `rt_q <= rt_iter_init;`
+  - `rt_q <= _u_fpsqrt_r16_block_nxt_rt_o;`
+  - `rt_m1_q <= {rt_m1_q[52], _op_frac_l_shifted_s5_to_s2_T_3[51:0]};`
+  - `rt_m1_q <= rt_m1_iter_init;`
+  - `rt_m1_q <= _u_fpsqrt_r16_block_nxt_rt_m1_o;`
+  - `mask_q <= {mask_q[12:4], exp_is_odd_pre_0_3, ..., exp_is_odd_pre_0_0};`
+  - `mask_q <= 13'h1000;`
+  - `mask_q <= {1'h0, mask_q[12:1]};`
+  - and the `f_r_s_q` initialization path
+  are all exercised.
+
+Assembly code cannot directly manipulate these internal RTL signals. What it *can* do is run on the same SoC/CPU that contains this FPSQRT block, exercising the block via its architectural interface (e.g., executing an `fsqrt` instruction, writing to a memory‐mapped control register, or feeding it test operands).  
+
+Since your request is “generate assembly so that it can be covered” and also “no loops, no jumps, simple flow”, the most appropriate and concise approach on a RISC‐V system with an FPU is to:
+
+- Execute several `fsqrt.d` instructions on different input patterns.
+- This will cause the hardware fpsqrt unit to go through its initialization and iteration states multiple times, which in turn should toggle the internal signals (`start_handshaked`, `fsm_q[...]`, `need_2_cycles_init`, etc.), helping to cover the RTL you showed.
+
+Below is a minimal RISC‐V assembly program (64‐bit, with F‐extension) that:
+
+- Loads several 64‐bit double‐precision values into floating registers.
+- Executes `fsqrt.d` on them to trigger the FPSQRT unit multiple times.
+- Follows your required `_start` skeleton and exit sequence.
+- Uses no loops and no branches/jumps: just straight‐line code.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Trigger the hardware sqrt unit on different operands
+    # 1) Normal positive double: 1.0
+    li      t0, 0x3ff0000000000000      # 1.0 in IEEE754 double
+    fmv.d.x fa0, t0
+    fsqrt.d fa1, fa0                    # sqrt(1.0)
+
+    # 2) Another positive double: 4.0
+    li      t1, 0x4010000000000000      # 4.0 in IEEE754 double
+    fmv.d.x fa2, t1
+    fsqrt.d fa3, fa2                    # sqrt(4.0)
+
+    # 3) Subnormal / small number: 2^-1022 (approx)
+    li      t2, 0x0010000000000000
+    fmv.d.x fa4, t2
+    fsqrt.d fa5, fa4
+
+    # 4) Zero
+    li      t3, 0x0000000000000000
+    fmv.d.x fa6, t3
+    fsqrt.d fa7, fa6
+
+    # 5) Negative input to trigger special case handling
+    li      t4, 0xbff0000000000000      # -1.0
+    fmv.d.x fa8, t4
+    fsqrt.d fa9, fa8
+
+    # 6) Infinity
+    li      t5, 0x7ff0000000000000      # +inf
+    fmv.d.x fa10, t5
+    fsqrt.d fa11, fa10
+
+    # 7) NaN
+    li      t6, 0x7ff8000000000000      # canonical quiet NaN
+    fmv.d.x fa12, t6
+    fsqrt.d fa13, fa12
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Notes:
+
+- This assumes a 64‐bit RISC‐V environment with the D (double‐precision) floating‐point extension and that `fsqrt.d` is implemented by the same FPSQRT RTL whose coverage you are measuring.
+- No branches or loops are used; execution is strictly sequential.
+- If your core only supports single‐precision, you can replace the double encodings and `fsqrt.d` with 32‐bit encodings and `fsqrt.s`, but the same idea applies.
+- To further tune coverage, adjust or extend the operand set (e.g., denormals, large exponents, odd/even exponents), but keep it in straight‐line style as above.

@@ -1,0 +1,61 @@
+To generate the correct and executable assembly code, let's carefully follow the requirements and ensure that we avoid illegal operands. Since the error seems to be related to loading some larger immediate values into registers, we'll make sure to use smaller, valid immediate values where applicable, or break them into multiple instructions if necessary.
+
+Given the pseudocode, we can deduce that the main operations revolve around simulating state machine transitions and bit manipulations. Let's create an assembly version of this logic:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize some registers for simulation
+    li      t0, 0      # t0 will simulate fsm_q[0]
+    li      t1, 0      # t1 will simulate fsm_q[1]
+    li      t2, 0      # t2 will simulate fsm_q[2]
+    li      t3, 0      # simulate `start_handshaked`
+
+    # Simulate: if (start_handshaked | fsm_q[1] | fsm_q[2])
+    or      t4, t3, t1 
+    or      t4, t4, t2 
+
+    # Only proceed if the condition is met
+    beqz    t4, exit   # if t4 is zero, exit
+
+    # Simulate fsm_q[0] actions
+    beqz    t0, fsm_q1 # if fsm_q[0] is zero, go to fsm_q1
+
+    # Simulate if (need_2_cycles_init)
+    # Assuming need_2_cycles_init is a condition bit, setting it to be true (1) for example
+    li      t5, 1      # need_2_cycles_init is true
+
+    # process under the need_2_cycles_init
+    beqz    t5, skip1
+    li      t6, 0x0FFF # Just a placeholder, adjust as needed
+    # Concatenate or move to register operation equivalent
+skip1:
+    li      t6, 0x1000 # Set mask_q to 0x1000 version
+
+    # Jump to the fsm_q1 logic
+    j       fsm_q1
+
+    # Simulate fsm_q[1] actions
+fsm_q1:
+    li      t7, 1      # Set some register, indicating `rt_iter_init` for example
+    # Continue with other operations...
+
+exit:
+    #下面为汇编程序退出逻辑,请不要修改
+    li      gp, 1
+    li      a7, 93
+    li      a0, 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+### Key Points:
+- The code simulates checking the conditions and changing states according to `fsm_q` flags.
+- Instead of `li` with large immediate values which could raise errors, use multiple instructions (`lui` and `addi`) to set larger values if needed.
+- Avoid unnecessary complexity by focusing solely on the intended behavior.
+- Since handling larger immediate values can be complex in RISCV, ensure you split them if necessary. Adjust logic as needed when specifics about operand sizes and constraints are better defined.
+
+This assembly code provides a skeleton to cover what the pseudocode's intent might be, given the limited context. Adjust `li` instructions with the correct instructions for real hardware register mimicking if actual values or bitwise manipulations are needed.

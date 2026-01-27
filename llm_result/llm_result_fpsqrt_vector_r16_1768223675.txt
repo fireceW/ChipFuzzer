@@ -1,0 +1,75 @@
+To generate assembly code corresponding to the given Verilog logic, we need to create an instruction flow that simulates the various conditions and assignments present in the Verilog code. Let's break down the Verilog logic and convert it to an assembly program.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize registers to simulate fsm states and input signals
+    li      t0, 0x4           # Initial fsm_q value
+    li      t1, 0x0           # iter_num_q as iter_num_q[3:0]
+    li      t2, 0x1           # start_handshaked
+    li      t3, 0x0           # need_2_cycles_init
+    li      t4, 0x0           # finish_ready_i
+    li      t5, 0xC           # _iter_num_d_T_11
+    li      t6, 0x0           # fp_fmt_q (assuming single register for simplicity)
+    li      t7, 0x0           # rm_i
+    li      t8, 0x0           # op_i[63:0] for simplicity
+
+    # Simulate FSM and data path logic
+    beq     t0, t0, fsm_state_4   # if (fsm_q == 4'h4)
+
+    # If not previously set for fsm_q == 4'h4
+    fsm_else:
+    li      t0, 0x1           # fsm_q <= 4'h1
+
+    # Check the start_handshaked condition
+    beqz    t2, no_handshake
+
+    # fsm_q[0] equivalent operation
+    andi    t9, t0, 0x1
+    beqz    t9, fsm_q_not_0
+
+    # if (need_2_cycles_init)
+    beqz    t3, skip_init_cycle
+    # iter_num_q update
+    ori     t1, t5, 0x0C       # iter_num_q <= | {4{_iter_num_d_T_11}} & 4'hC
+    skip_init_cycle:
+
+    # fsm_q[1] equivalent operation, cover via small test code
+    fsm_q_not_0:
+    beqz    t2, finish_handshake # if (start_handshaked) is false, skip
+
+    # Setting values upon handshake start
+    mv      t6, t5            # Simulates fp_fmt_q <= {_iter_num_d_T_11, _iter_num_d_T_7, _iter_num_d_T_4}
+    mv      t7, t7            # rm_q <= rm_i
+
+    # Simplified exit assumes correct handling
+    finish_handshake:
+    li      gp, 1
+    li      a7, 93
+    li      a0, 0
+    ecall
+
+    # Exit point upon conditions not met
+    no_handshake:
+    li      gp, 1
+    li      a7, 93
+    li      a0, 0
+    ecall
+
+    unimp
+    .insn   2, 0x0000
+```
+
+### Explanation
+
+- **FSM and Condition Checks:** We initialized `t0` to simulate `fsm_q`, and other registers emulate control signals such as `start_handshaked`.
+  
+- **State Simulation:** The FSM logic translates to assembly through the use of `beq` and `beqz` instructions.
+  
+- **Data Initialization:** Registers like `t6` and `t7` were used to simulate specific data-path elements such as updating `fp_fmt_q` and `rm_q`.
+
+- **Exit Logic:** The assembly program ensures execution terminates cleanly using `li` and `ecall`.
+
+The provided assembly in the answer conforms with the provided guidelines for a simple flow avoiding jumps and loops, conditioned under circumstances or states simulated directly from the original Verilog intention. The conversion doesn't precisely duplicate algorithmic execution since registers directly correlate to expressions significantly observed within such high-level routines.

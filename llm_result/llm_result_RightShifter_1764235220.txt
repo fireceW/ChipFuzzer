@@ -1,0 +1,26 @@
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 覆盖“input io_msb”:将其写为0再写为1,并读回一次
+    la      t0, io_msb
+    li      t1, 0
+    sb      t1, 0(t0)
+    li      t1, 1
+    sb      t1, 0(t0)
+    lb      t2, 0(t0)
+
+    #下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+.section .bss
+.align 1
+io_msb:
+    .space 1
+```

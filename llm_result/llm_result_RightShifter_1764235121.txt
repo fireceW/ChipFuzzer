@@ -1,0 +1,17 @@
+.section .text
+.global _start
+
+_start:
+    #汇编程序去执行 uncovered code
+    li      t0, 0x80       # 模拟 io_msb 为 1 的输入数据(字节最高位为1)
+    srli    t1, t0, 7      # 提取最高位,得到1
+    li      t2, 0x7F       # 模拟 io_msb 为 0 的输入数据(字节最高位为0)
+    srli    t3, t2, 7      # 提取最高位,得到0
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000

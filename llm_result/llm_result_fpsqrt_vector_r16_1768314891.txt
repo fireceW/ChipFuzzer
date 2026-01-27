@@ -1,0 +1,334 @@
+下面先简要说明代码功能,然后给出符合你模板、可编译、无跳转/循环、尽量简洁的 RISC‐V 汇编示例,用于激活这些逻辑路径(通常是通过把一些关键信号和寄存器在内存中按不同取值写出来,让仿真/形式工具驱动 DUT)。
+
+---
+
+### 1. 代码功能简析(方便你对照是否已覆盖)
+
+核心状态机和寄存器行为大致如下(用简单中文说明一下含义,方便你设计 testbench 的驱动):
+
+1. `fsm_q` 状态迁移:
+   - `else if (fsm_q == 4'h4)`  
+     `fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;`  
+     含义:在状态 4 时,如果 `iter_num_q` 非 0,则保持在 4;否则跳到 8。
+   - `else if (fsm_q != 4'h8 | finish_ready_i)`  
+     `fsm_q <= 4'h1;`  
+     后面紧跟一条 `fsm_q <= 4'h8;`(综合时后一条会覆盖前一条)。  
+     所以在这个 `else if` 分支里,最终 `fsm_q` 会被赋值为 8。
+
+   要覆盖这些分支,你需要在仿真中制造:
+   - `fsm_q == 4` 且 `iter_num_q` 为 0 与非 0 两种情况;
+   - `fsm_q != 8` 或 `finish_ready_i` 为 1 时执行到该 `else if`(从覆盖工具角度看,条件为真即可)。
+
+2. `iter_num_q` 更新逻辑:
+   - 当 `start_handshaked | fsm_q[1] | (fsm_q[2] & (|iter_num_q))` 为真时:
+     - 如果 `fsm_q[0]` 为 1 且 `need_2_cycles_init` 为真:  
+       `iter_num_q <= {iter_num_q[3:2], op_l_shift_num_0[1:0]};`
+     - 接着有一句:  
+       `iter_num_q <= | {4{_iter_num_d_T_11}} & 4'hC;`  
+       这相当于如果 `_iter_num_d_T_11` 为 1 时置为 `4'hC`,否则为 0。
+     - `else if (fsm_q[1])` 情况下:用 `fp_fmt_q` 不同位选择不同常数;  
+       然后  
+       `iter_num_q <= 4'(iter_num_q - 4'h1);` 进行减 1。
+
+   覆盖思路:至少让 `fsm_q[0] = 1` 与 `fsm_q[1] = 1` 两种情况出现,`start_handshaked` / `iter_num_q` 非 0 也要触发。
+
+3. 当 `start_handshaked` 为 1 时:
+   - `fp_fmt_q`、`rm_q`、`out_sign_*_q`、`out_exp_*_q`、`res_is_*_q` 等寄存器全部被赋值。
+   - 对 `res_is_inf_*_q`、`res_is_exact_zero_*_q`、`op_invalid_0_q` 等做判断并寄存。
+
+这些逻辑在仿真中通常通过设置输入信号来触发。你现在需要的是一个 RISC‐V 汇编程序,它在内存中构造一些关键的“输入场景”(比如不同的 `fsm_q` 初值、`iter_num_q`、`finish_ready_i`、`start_handshaked` 等),由外部 testbench 将这些内存值连到 DUT 的端口,或在指令 trace 驱动中使用,从而实现覆盖。
+
+---
+
+### 2. 汇编代码说明
+
+根据你给出的错误信息:
+
+> Error: illegal operands `li t7,0x0'  
+> Error: illegal operands `li t7,0x7'  
+
+这通常是因为所用汇编环境/ABI 中寄存器名或伪指令支持有差异。为避免再次出错,我进行如下约束:
+
+- 只使用标准整数寄存器:`x0`~`x31` 的 ABI 名称:  
+  `zero, ra, sp, gp, tp, t0–t6, s0–s11, a0–a7`。
+- 使用 `li` 伪指令,但立即数全部为 **小十进制常数**(不带 0x 前缀,避免某些工具链对十六进制写法的特殊限制)。
+- 不使用 `t7` 之类非标准名;只用 `t0`~`t6`,`a0`~`a7` 等。
+- 不使用跳转和循环,只做一些简单顺序写内存。
+
+假设:  
+- 测试平台将从 `_start` 开始执行,  
+- 你可以在 testbench 里把下面这些内存位置映射到 DUT 的输入信号上:例如
+  - `fsm_state_mem0` → 初始 `fsm_q` 场景 0  
+  - `fsm_state_mem1` → 场景 1  
+  - `iter_num_memX`、`finish_flag_memX` 等。
+
+你可以按自己的 testbench 设计调整地址和字段含义。
+
+---
+
+### 3. 符合模板的 RISC‐V 汇编示例(无跳转、无循环)
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    ################################################################
+    # 场景 1:fsm_q = 4, iter_num_q = 非零,用于触发:
+    #   if (fsm_q == 4'h4) fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;
+    # 中 "保持在 4" 的路径
+    ################################################################
+
+    # 使用 t0 作为基地址指针
+    la      t0, fsm_state_mem0      # 存放场景0下 fsm_q 初始值
+    li      t1, 4                   # fsm_q = 4
+    sw      t1, 0(t0)
+
+    la      t0, iter_num_mem0       # iter_num_q 初值
+    li      t1, 3                   # 设为非 0
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 场景 2:fsm_q = 4, iter_num_q = 0,用于触发:
+    #   if (fsm_q == 4'h4) ... 跳到 8 的路径
+    ################################################################
+
+    la      t0, fsm_state_mem1
+    li      t1, 4                   # fsm_q = 4
+    sw      t1, 0(t0)
+
+    la      t0, iter_num_mem1
+    li      t1, 0                   # iter_num_q = 0
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 场景 3:fsm_q != 8 且 finish_ready_i = 1
+    # 覆盖:
+    #   else if (fsm_q != 4'h8 | finish_ready_i) ...
+    ################################################################
+
+    la      t0, fsm_state_mem2
+    li      t1, 1                   # fsm_q = 1 (非 8)
+    sw      t1, 0(t0)
+
+    la      t0, finish_flag_mem2
+    li      t1, 1                   # finish_ready_i = 1
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 场景 4:触发 iter_num_q 相关分支:
+    # 条件:start_handshaked = 1, fsm_q[0] = 1, need_2_cycles_init = 1
+    # 以及 _iter_num_d_T_11 = 1 覆盖 "| {4{_iter_num_d_T_11}} & 4'hC"
+    ################################################################
+
+    # start_handshaked = 1
+    la      t0, start_hs_mem0
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    # fsm_q = 1 (0001b),使 fsm_q[0] = 1
+    la      t0, fsm_state_mem3
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    # need_2_cycles_init = 1
+    la      t0, need2cyc_mem0
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    # _iter_num_d_T_11 = 1
+    la      t0, iter_num_flag_mem0
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 场景 5:触发 fsm_q[1] 分支,覆盖:
+    #   else if (fsm_q[1]) iter_num_q <= {2'h0,...} | {...}
+    #   以及后续 iter_num_q <= iter_num_q - 1 的路径
+    ################################################################
+
+    # fsm_q = 2 (0010b),使 fsm_q[1] = 1
+    la      t0, fsm_state_mem4
+    li      t1, 2
+    sw      t1, 0(t0)
+
+    # fp_fmt_q 的不同位组合,用于测试 4'h5, 4'hC 等常数
+    # 假设我们在内存中用 3 位编码 fp_fmt_q[2:0]
+    la      t0, fp_fmt_mem0
+    li      t1, 1       # 例如 001b,仅 fp_fmt_q[0] = 1
+    sw      t1, 0(t0)
+
+    la      t0, fp_fmt_mem1
+    li      t1, 2       # 010b,仅 fp_fmt_q[1] = 1
+    sw      t1, 0(t0)
+
+    la      t0, fp_fmt_mem2
+    li      t1, 4       # 100b,仅 fp_fmt_q[2] = 1
+    sw      t1, 0(t0)
+
+    # iter_num_q 初值,便于之后减 1
+    la      t0, iter_num_mem2
+    li      t1, 5
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 场景 6:start_handshaked = 1,下列输入准备完毕,
+    # 用于覆盖所有 out_sign/out_exp/res_is_* 赋值语句
+    ################################################################
+
+    # start_handshaked = 1
+    la      t0, start_hs_mem1
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    # rm_i (舍入模式) 任意非零
+    la      t0, rm_i_mem
+    li      t1, 3
+    sw      t1, 0(t0)
+
+    # op_i:64 位向量,简化为低 32 位 + 高 32 位在内存中,各自不同花样
+    # 以便:
+    #   out_sign_*_q 使用 op_i[63], [31], [47], [15]
+    #   res_is_inf_*_q 使用 op_exp_is_max_* 或 (&(op_i[46:42])) 等
+    la      t0, op_i_low
+    li      t1, -1                  # 0xFFFFFFFF,全部为 1,方便 & 操作
+    sw      t1, 0(t0)
+
+    la      t0, op_i_high
+    li      t1, -1                  # 0xFFFFFFFF,高位也全 1
+    sw      t1, 0(t0)
+
+    # res_is_nan_*_d 各种组合
+    la      t0, res_nan_mem0
+    li      t1, 1                   # res_is_nan_0_d = 1
+    sw      t1, 0(t0)
+
+    la      t0, res_nan_mem1
+    li      t1, 0                   # res_is_nan_1_d = 0
+    sw      t1, 0(t0)
+
+    la      t0, res_nan_mem2
+    li      t1, 1                   # res_is_nan_2_d = 1
+    sw      t1, 0(t0)
+
+    la      t0, res_nan_mem3
+    li      t1, 0                   # res_is_nan_3_d = 0
+    sw      t1, 0(t0)
+
+    # op_is_zero_* 组合
+    la      t0, op_zero_mem0
+    li      t1, 0                   # 非零
+    sw      t1, 0(t0)
+
+    la      t0, op_zero_mem1
+    li      t1, 1                   # 为零
+    sw      t1, 0(t0)
+
+    la      t0, op_zero_mem2
+    li      t1, 0
+    sw      t1, 0(t0)
+
+    la      t0, op_zero_mem3
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    # op_invalid_0_d
+    la      t0, op_invalid_mem0
+    li      t1, 1
+    sw      t1, 0(t0)
+
+    ################################################################
+    # 程序退出逻辑(按照你的模板,保持不变)
+    ################################################################
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+################################################################
+# 数据段:用于与 testbench/DUT 交互的内存变量
+################################################################
+.section .data
+
+fsm_state_mem0:
+    .word 0
+fsm_state_mem1:
+    .word 0
+fsm_state_mem2:
+    .word 0
+fsm_state_mem3:
+    .word 0
+fsm_state_mem4:
+    .word 0
+
+iter_num_mem0:
+    .word 0
+iter_num_mem1:
+    .word 0
+iter_num_mem2:
+    .word 0
+
+finish_flag_mem2:
+    .word 0
+
+start_hs_mem0:
+    .word 0
+start_hs_mem1:
+    .word 0
+
+need2cyc_mem0:
+    .word 0
+
+iter_num_flag_mem0:
+    .word 0
+
+fp_fmt_mem0:
+    .word 0
+fp_fmt_mem1:
+    .word 0
+fp_fmt_mem2:
+    .word 0
+
+rm_i_mem:
+    .word 0
+
+op_i_low:
+    .word 0
+op_i_high:
+    .word 0
+
+res_nan_mem0:
+    .word 0
+res_nan_mem1:
+    .word 0
+res_nan_mem2:
+    .word 0
+res_nan_mem3:
+    .word 0
+
+op_zero_mem0:
+    .word 0
+op_zero_mem1:
+    .word 0
+op_zero_mem2:
+    .word 0
+op_zero_mem3:
+    .word 0
+
+op_invalid_mem0:
+    .word 0
+```
+
+---
+
+### 4. 使用与调整建议
+
+- 此汇编文件是完整可编译的 RISC‐V 源文件(例如用 `riscv64-unknown-elf-gcc -c` 编译)。
+- 没有使用问题中的 `t7` 寄存器,也没有给 `li` 传入十六进制文本立即数;立即数全部为合法的小整数或 `-1`。
+- 你可以在 testbench 中:
+  - 从上述 `.data` 段读出各场景下的值,驱动 DUT 的 `fsm_q`、`iter_num_q`、`start_handshaked`、`finish_ready_i` 等;
+  - 或者在仿真结束时检查 DUT 内部状态是否与这些预设场景相符,以确认走过目标路径。
+
+如果你能提供这段 RTL 模块的端口名/顶层连接方式,我可以进一步把每个内存变量与具体端口映射建议标出来。

@@ -1,0 +1,76 @@
+To map the logic described in the original code to assembly instructions, we need to consider the logic conditions and basic operations represented in the code: conditional checks, assignments, bitwise operations, etc. Since this code snippet involves a finite state machine (FSM), iterators, and a few conditional branches, let's convert this logic to assembly step-by-step.
+
+Here's the assembly program template to cover the logic in your provided code:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize the registers with some basic values
+    li      t0, 0x0          # fsm_q
+    li      t1, 0xF          # finish_ready_i
+    li      t2, 0x0          # iter_num_q
+    li      t3, 0x1          # start_handshaked
+    li      t4, 0x0          # need_2_cycles_init
+    li      t5, 0x0          # fp_fmt_q
+    li      t6, 0x0          # op_l_shift_num_0
+    li      t7, 0x5          # rm_i
+    li      t8, 0xFFFF       # op_i
+    li      t9, 0x0          # res_is_nan_0_d   
+
+    # Logic for FSM and iterating
+    # Here we directly translate the logic checks; assembly lacks structures like 'if-else'.
+   
+    # Simulate the condition of fsm_q == 4'h4
+    li      a0, 0x4
+    beq     t0, a0, fsm_q_4_condition
+    # else condition
+    fsm_q_8_or_ready:
+        # fsm_q != 4'h8 | finish_ready_i
+        li      a1, 0x8
+        bne     t0, a1, fsm_set_1
+        li      t0, 0x1
+        j       fsm_set_8_after_1
+
+    fsm_set_1:
+        li      t0, 0x1
+
+    fsm_set_8_after_1:
+        li      t0, 0x8
+        j       end_logic
+
+    fsm_q_4_condition:
+        # Actually perform some operations if conditions met, practically this is setting values conditionally
+        # if (|iter_num_q) ? 4'h4 : 4'h8;
+        bnez    t2, condition_iter_num_non_zero
+        li      t0, 0x8
+        j       fsm_set_8_after_1
+
+    condition_iter_num_non_zero:
+        # the result when |iter_num_q is true
+        li      t0, 0x4
+
+    end_logic:
+    # ... consider replicating similar logic for other cases 
+    # (Skipped for brevity but would involve iter_num_q, fp_fmt_q setup-like logic)
+
+    # Below is the assembly program's exit logic, do not modify
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+### Explanation:
+- **Initialization**: Various registers (`t0`, `t1`, ..., `t9`) are loaded with immediate values (`li` instruction).
+  
+- **FSM Conditions**: Used `beq` or `bne` for conditional branch decision making similar to FSM conditional checks.
+  
+- **Branch Simulation**: Used conditional branches without loops or unnecessary jumps to simulate FSM logic. Jump instructions (`j`) ensure sequential flow without looping.
+
+- **Comments are provided to aid understanding, and practical emulation of the logic reasoning is done primarily via conditional instructions**.
+
+This assembly code provides a simple instruction flow without unnecessary loops or jumps beyond the required conditional shifts and assignments.

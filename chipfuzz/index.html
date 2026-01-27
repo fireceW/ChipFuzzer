@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ChipFuzzer：一个面向芯片验证的模糊测试框架，覆盖接口/协议/固件/SoC 组件的高效验证流程。"
+    />
+    <title>ChipFuzzer | 芯片验证框架展示</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./assets/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <header class="header" role="banner">
+      <div class="container header__inner">
+        <div class="brand">
+          <div class="brand__logo" aria-hidden="true">CF</div>
+          <div class="brand__text">
+            <div class="brand__name">ChipFuzzer</div>
+            <div class="brand__tag">芯片验证 / Fuzzing 框架</div>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <a class="nav__link" href="#monitor">运行监控</a>
+          <a class="nav__link" href="#features">特性</a>
+          <a class="nav__link" href="#architecture">架构</a>
+          <a class="nav__link" href="#workflow">流程</a>
+          <a class="nav__link" href="#quickstart">快速上手</a>
+          <a class="nav__link" href="#cases">应用场景</a>
+        </nav>
+
+        <div class="header__actions">
+          <button class="btn btn--ghost" id="themeToggle" type="button" aria-label="切换主题">
+            <span class="btn__icon" aria-hidden="true">◐</span>
+            <span class="btn__text">主题</span>
+          </button>
+          <a class="btn btn--primary" href="#contact">联系/下载</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="container hero__grid">
+          <div class="hero__copy">
+            <p class="kicker">验证更快、覆盖更深、复现实验更稳</p>
+            <h1 class="hero__title">
+              ChipFuzzer
+              <span class="hero__titleAccent">芯片验证框架</span>
+            </h1>
+            <p class="hero__subtitle">
+              面向芯片接口/协议/固件/SoC 组件的 <b>可扩展</b>模糊测试与验证平台：把输入生成、执行、观测、判定、归因、复现串成一条可自动化的流水线。
+            </p>
+
+            <div class="hero__cta">
+              <a class="btn btn--primary" href="#quickstart">查看快速上手</a>
+              <a class="btn btn--ghost" href="#architecture">了解架构</a>
+            </div>
+
+            <div class="stats" aria-label="指标摘要">
+              <div class="stat">
+                <div class="stat__num"><span data-count="8">0</span>+</div>
+                <div class="stat__label">模块化组件</div>
+              </div>
+              <div class="stat">
+                <div class="stat__num"><span data-count="3">0</span> 类</div>
+                <div class="stat__label">运行模式（仿真/板级/混合）</div>
+              </div>
+              <div class="stat">
+                <div class="stat__num"><span data-count="5">0</span>+</div>
+                <div class="stat__label">可插拔适配器（示例）</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero__panel" aria-label="架构概览卡片">
+            <div class="panel">
+              <div class="panel__top">
+                <div class="panel__pill">Architecture Overview</div>
+                <div class="panel__dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+              <div class="panel__body">
+                <div class="diagram">
+                  <div class="diagram__col">
+                    <div class="node node--accent">
+                      <div class="node__title">Input Engine</div>
+                      <div class="node__desc">语法/变异/生成</div>
+                    </div>
+                    <div class="node">
+                      <div class="node__title">Scheduler</div>
+                      <div class="node__desc">队列/优先级/去重</div>
+                    </div>
+                  </div>
+                  <div class="diagram__col">
+                    <div class="node node--accent">
+                      <div class="node__title">Executor</div>
+                      <div class="node__desc">仿真/板级/混合</div>
+                    </div>
+                    <div class="node">
+                      <div class="node__title">Observer</div>
+                      <div class="node__desc">trace/寄存器/日志</div>
+                    </div>
+                  </div>
+                  <div class="diagram__col">
+                    <div class="node node--accent">
+                      <div class="node__title">Oracle</div>
+                      <div class="node__desc">断言/异常/覆盖</div>
+                    </div>
+                    <div class="node">
+                      <div class="node__title">Reproducer</div>
+                      <div class="node__desc">最小化/复现包</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel__foot">
+                  <div class="badge">可插拔：适配不同 IP / 协议 / 板卡</div>
+                  <div class="badge">可观测：覆盖 + 运行时信号 + 崩溃归因</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="monitor" class="section">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">运行监控（连接服务器）</h2>
+            <p class="section__desc">
+              这里会实时展示你服务器上 ChipFuzzer 的运行日志与状态（需要服务器端提供 API：SSE/轮询）。
+            </p>
+          </div>
+
+          <div class="grid grid--3">
+            <div class="card">
+              <h3 class="card__title">连接配置</h3>
+              <p class="card__desc">把 API 地址改成你的域名（建议走同域反代），然后选择一个 runId 进行订阅。</p>
+
+              <div class="form">
+                <label class="field">
+                  <span class="field__label">API Base</span>
+                  <input class="field__input" id="apiBase" value="http://localhost" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Token（可选）</span>
+                  <input class="field__input" id="apiToken" placeholder="如果你启用了鉴权，在这里填 token" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Run ID</span>
+                  <input class="field__input" id="runId" placeholder="例如: 2026-01-20T10-30-12Z" />
+                </label>
+              </div>
+
+              <div class="pillRow" style="margin-top:12px">
+                <button class="btn btn--primary" type="button" id="btnStartRun">启动新任务</button>
+                <button class="btn btn--primary" type="button" id="btnConnect">连接日志流</button>
+                <button class="btn btn--ghost" type="button" id="btnDisconnect">断开</button>
+                <button class="btn btn--ghost" type="button" id="btnListRuns">获取任务列表</button>
+                <button class="btn btn--ghost btn--danger" type="button" id="btnStopRun">停止任务</button>
+              </div>
+
+              <div class="mini">
+                <div class="mini__row">
+                  <span class="mini__k">连接状态</span>
+                  <span class="mini__v" id="connState">未连接</span>
+                </div>
+                <div class="mini__row">
+                  <span class="mini__k">任务状态</span>
+                  <span class="mini__v" id="runState">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 class="card__title">任务参数配置</h3>
+              <p class="card__desc">配置 xiangshan_fuzzing.py 的运行参数，不修改则使用默认值。</p>
+
+              <div class="form">
+                <label class="field">
+                  <span class="field__label">--module</span>
+                  <input class="field__input" id="paramModule" value="Bku" />
+                </label>
+                <label class="field">
+                  <span class="field__label">模型类型</span>
+                  <select class="field__input" id="paramModelType">
+                    <option value="commercial">商业模型 (OpenAI)</option>
+                    <option value="opensource" selected>开源模型</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">--model</span>
+                  <select class="field__input" id="paramModel">
+                    <option value="qwen3:235b">qwen3:235b</option>
+                    <option value="deepseek-r1:671b">deepseek-r1:671b</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">--mode（运行模式）</span>
+                  <select class="field__input" id="paramMode">
+                    <option value="continue" selected>continue（继续累积覆盖率）</option>
+                    <option value="fresh">fresh（创建新的覆盖率文件）</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">--max_iterations（每模块最大尝试次数）</span>
+                  <input class="field__input" type="number" id="paramMaxIterations" value="20" min="1" max="100" />
+                </label>
+                <label class="field">
+                  <span class="field__label">--num（自动模式下测试模块数量）</span>
+                  <input class="field__input" type="number" id="paramNum" value="1" min="1" max="50" />
+                </label>
+                <label class="field" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="paramAutoSwitch" style="width: auto;" />
+                  <span class="field__label" style="margin: 0;">--auto_switch（自动切换模块）</span>
+                </label>
+                <label class="field" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="paramUseSpec" style="width: auto;" />
+                  <span class="field__label" style="margin: 0;">--use_spec（使用 SPEC 文件分析）</span>
+                </label>
+                <label class="field" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="paramRunExistingSeeds" style="width: auto;" />
+                  <span class="field__label" style="margin: 0;">--run_existing_seeds（运行已有成功用例）</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 class="card__title">实时日志</h3>
+              <p class="card__desc">SSE 推送的每一行日志都会追加到这里（支持自动滚动）。</p>
+              <div class="logbox" role="region" aria-label="实时日志输出">
+                <div class="logbox__top">
+                  <span class="logbox__hint" id="logHint">等待连接…</span>
+                  <button class="btn btn--ghost btn--sm" type="button" id="btnClearLog">清空</button>
+                </div>
+                <pre class="logbox__pre" id="logOut"></pre>
+              </div>
+            </div>
+
+            <div class="card card--wide">
+              <h3 class="card__title">覆盖率统计</h3>
+              <p class="card__desc">初始覆盖率在任务启动时记录，当前覆盖率实时更新。</p>
+              
+              <div class="metrics">
+                <div class="metric">
+                  <div class="metric__label">初始覆盖率</div>
+                  <div class="metric__value" id="initialCoverage" style="color: #888;">-</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">当前覆盖率</div>
+                  <div class="metric__value" id="totalCoverage">-</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">覆盖率增量</div>
+                  <div class="metric__value metric__value--sm" id="coverageDelta" style="color: #4ade80;">+0%</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">总覆盖行数</div>
+                  <div class="metric__value metric__value--sm" id="totalLines">0</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">总参考案例数</div>
+                  <div class="metric__value metric__value--sm" id="totalSuccessSeeds">0</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">本次成功案例</div>
+                  <div class="metric__value metric__value--sm" id="successCases">0</div>
+                </div>
+              </div>
+
+              <div class="recent" style="margin-top:14px">
+                <div class="recent__title">最近覆盖的代码行</div>
+                <div class="recent__list" id="recentCoverage">
+                  <div class="recent__empty">等待覆盖数据...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card--wide" style="padding: 14px 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                  <h3 class="card__title" style="margin-bottom: 2px; font-size: 15px;">执行统计</h3>
+                  <p class="card__desc" style="margin: 0; font-size: 11px; opacity: 0.8;">大模型生成和模拟器执行的统计信息</p>
+                </div>
+              </div>
+              
+              <div class="metrics" style="grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 0;">
+                <div class="metric" style="padding: 10px 12px;">
+                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">LLM 生成次数</div>
+                  <div class="metric__value" id="llmGenerationCount" style="font-size: 20px; margin-top: 0; line-height: 1.2;">0</div>
+                </div>
+                <div class="metric" style="padding: 10px 12px;">
+                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">编译成功率</div>
+                  <div class="metric__value" id="compileSuccessRate" style="font-size: 20px; margin-top: 0; line-height: 1.2; color: #4ade80;">-</div>
+                </div>
+                <div class="metric" style="padding: 10px 12px;">
+                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">模拟器成功执行</div>
+                  <div class="metric__value" id="emulatorSuccessCount" style="font-size: 20px; margin-top: 0; line-height: 1.2;">0</div>
+                </div>
+                <div class="metric" style="padding: 10px 12px;">
+                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">模拟器执行成功率</div>
+                  <div class="metric__value" id="emulatorSuccessRate" style="font-size: 20px; margin-top: 0; line-height: 1.2; color: #4ade80;">-</div>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+                <div>
+                  <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px; opacity: 0.85;">LLM vs 模拟器执行对比</div>
+                  <div style="height: 160px; position: relative;">
+                    <canvas id="statisticsChart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px; opacity: 0.85;">覆盖率增长趋势</div>
+                  <div style="height: 160px; position: relative;">
+                    <canvas id="coverageChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card--wide">
+              <h3 class="card__title">L2 模块组覆盖率</h3>
+              <p class="card__desc">单独统计 L2Cache、L2TLB 等关键模块的覆盖情况。
+                <button class="btn btn--ghost btn--sm" type="button" id="btnRefreshL2">刷新</button>
+              </p>
+              
+              <div class="metrics" style="margin-bottom: 12px;">
+                <div class="metric">
+                  <div class="metric__label">L2 总体覆盖率</div>
+                  <div class="metric__value" id="l2TotalCoverage">-</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">已覆盖行数</div>
+                  <div class="metric__value metric__value--sm" id="l2CoveredLines">0</div>
+                </div>
+                <div class="metric">
+                  <div class="metric__label">未覆盖行数</div>
+                  <div class="metric__value metric__value--sm" id="l2UncoveredLines">0</div>
+                </div>
+              </div>
+
+              <div class="l2-modules" id="l2ModulesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">
+                <div class="recent__empty">点击刷新获取数据...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section section--alt">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">核心特性</h2>
+            <p class="section__desc">
+              你可以把 ChipFuzzer 看成“验证自动化底座”：输入策略、执行环境、观测信号与判定逻辑都可独立扩展。
+            </p>
+          </div>
+
+          <div class="grid grid--3">
+            <article class="card">
+              <h3 class="card__title">模块化 + 插件化</h3>
+              <p class="card__desc">Generator / Mutator / Executor / Observer / Oracle / Reporter 全部可替换，适配不同项目。</p>
+              <ul class="card__list">
+                <li><b>适配器</b>：SPI/I2C/UART/PCIe/自定义总线</li>
+                <li><b>环境</b>：仿真、FPGA、板级、混合回放</li>
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3 class="card__title">可观测验证</h3>
+              <p class="card__desc">把“跑起来”升级为“能解释”：覆盖、trace、寄存器快照、异常路径都可被采集与回放。</p>
+              <ul class="card__list">
+                <li><b>覆盖</b>：路径/状态/接口事务级覆盖（按需）</li>
+                <li><b>证据链</b>：输入 → 执行 → 观测 → 结论</li>
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3 class="card__title">崩溃最小化与复现包</h3>
+              <p class="card__desc">自动对失败样本做去噪、归并、最小化，输出可复现的“验证工单”。</p>
+              <ul class="card__list">
+                <li><b>最小化</b>：delta-debug / grammar-aware</li>
+                <li><b>复现</b>：一键生成脚本 + 固件/配置快照</li>
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3 class="card__title">面向协议与状态机</h3>
+              <p class="card__desc">内建“状态驱动”的输入编排，适合复杂协议/初始化序列/多阶段交互。</p>
+              <ul class="card__list">
+                <li><b>语法</b>：BNF/JSON schema/自定义描述</li>
+                <li><b>状态</b>：会话/事务/上下文约束</li>
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3 class="card__title">调度与降噪</h3>
+              <p class="card__desc">优先探索“新覆盖/新状态/新异常”，并对重复崩溃做签名聚合，提升有效产出。</p>
+              <ul class="card__list">
+                <li><b>队列</b>：去重、优先级、回放</li>
+                <li><b>签名</b>：异常类型/堆栈/寄存器/trace 指纹</li>
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3 class="card__title">报告与可视化</h3>
+              <p class="card__desc">自动生成日报/周报、趋势图、Top 失败路径、覆盖增量等，让验证结果“可交付”。</p>
+              <ul class="card__list">
+                <li><b>输出</b>：HTML/JSON/CI 工件</li>
+                <li><b>集成</b>：CI / Issue / 通知（可选）</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture" class="section">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">参考架构（可按项目裁剪）</h2>
+            <p class="section__desc">
+              每个方块都可替换：你只要把“目标接口”和“判定规则”接进来，就能在统一流水线里跑。
+            </p>
+          </div>
+
+          <div class="timeline">
+            <div class="step">
+              <div class="step__badge">1</div>
+              <div class="step__body">
+                <h3 class="step__title">Input Engine</h3>
+                <p class="step__desc">输入生成（语法/模板）+ 变异（bitflip/结构变异/语义变异）。</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__badge">2</div>
+              <div class="step__body">
+                <h3 class="step__title">Scheduler</h3>
+                <p class="step__desc">队列管理、优先级策略、样本去重、回放与探索平衡。</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__badge">3</div>
+              <div class="step__body">
+                <h3 class="step__title">Executor</h3>
+                <p class="step__desc">驱动 DUT：仿真/板级/混合，支持超时、重置与断点式观测。</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__badge">4</div>
+              <div class="step__body">
+                <h3 class="step__title">Observer & Oracle</h3>
+                <p class="step__desc">采集信号并给出结论：覆盖、异常、断言、协议一致性、性能阈值等。</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__badge">5</div>
+              <div class="step__body">
+                <h3 class="step__title">Triage & Reproducer</h3>
+                <p class="step__desc">失败样本聚类、最小化、归因，并输出“一键复现包”。</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step__badge">6</div>
+              <div class="step__body">
+                <h3 class="step__title">Report</h3>
+                <p class="step__desc">可交付结果：趋势、Top 异常、覆盖增量、复现入口、证据链。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="workflow" class="section">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">典型工作流</h2>
+            <p class="section__desc">把验证拆成四步：定义目标 → 接入执行 → 配置判定 → 跑批量与复现。</p>
+          </div>
+
+          <div class="grid grid--2">
+            <div class="card card--tight">
+              <h3 class="card__title">1) 选择目标与接口</h3>
+              <p class="card__desc">例如：某 IP 的寄存器访问、某协议栈、BootROM 命令、固件 RPC、SoC 外设。</p>
+              <div class="pillRow">
+                <span class="pill">I2C</span><span class="pill">SPI</span><span class="pill">UART</span><span class="pill">MMIO</span><span class="pill">JTAG</span>
+              </div>
+            </div>
+            <div class="card card--tight">
+              <h3 class="card__title">2) 接入执行器</h3>
+              <p class="card__desc">选择仿真/板级/混合；配置 reset/timeout；把输入映射为事务。</p>
+              <div class="pillRow">
+                <span class="pill">Sim</span><span class="pill">FPGA</span><span class="pill">Board</span><span class="pill">Hybrid</span>
+              </div>
+            </div>
+            <div class="card card--tight">
+              <h3 class="card__title">3) 定义判定（Oracle）</h3>
+              <p class="card__desc">崩溃/挂起/断言/协议一致性/性能阈值/安全规则都可以是“失败”。</p>
+              <div class="pillRow">
+                <span class="pill">Assert</span><span class="pill">Timeout</span><span class="pill">Coverage</span><span class="pill">Spec</span>
+              </div>
+            </div>
+            <div class="card card--tight">
+              <h3 class="card__title">4) 运行、聚类、复现</h3>
+              <p class="card__desc">自动输出失败样本、签名聚类、最小化输入与复现脚本，便于修复闭环。</p>
+              <div class="pillRow">
+                <span class="pill">Triage</span><span class="pill">Minimize</span><span class="pill">Repro</span><span class="pill">Report</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="quickstart" class="section section--alt">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">快速上手（示例模板，可替换为你的真实命令）</h2>
+            <p class="section__desc">我先放一个“看起来像真的”的演示结构，你把参数/脚本替换成你项目里的即可。</p>
+          </div>
+
+          <div class="codeCard" role="region" aria-label="Quickstart code">
+            <div class="codeCard__top">
+              <div class="codeCard__title">示例：针对某外设寄存器接口的 fuzz</div>
+              <button class="btn btn--ghost btn--sm" type="button" data-copy="#qs1">
+                复制
+              </button>
+            </div>
+            <pre class="code"><code id="qs1"># 1) 初始化工程（示例）
+chipfuzzer init --target my_ip --iface mmio --out ./cf-work
+
+# 2) 选择输入策略（示例）
+chipfuzzer config set generator=grammar
+chipfuzzer config set mutator=struct-aware
+
+# 3) 选择执行模式（示例）
+chipfuzzer run --mode board --transport uart --timeout 3000ms --jobs 8
+
+# 4) 产物：报告 + 复现包（示例）
+chipfuzzer report --in ./cf-work --out ./cf-report
+chipfuzzer repro --case crash_00042 --out ./repro_00042
+</code></pre>
+            <p class="codeCard__hint">
+              提示：你也可以把这里替换成 <b>真实 CLI</b> 或者放一个 GitHub/Gitee 的 README 链接。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="cases" class="section">
+        <div class="container">
+          <div class="section__head">
+            <h2 class="section__title">应用场景</h2>
+            <p class="section__desc">适合你把“难验证、难复现、覆盖难提升”的问题，转成自动化可追踪的验证任务。</p>
+          </div>
+
+          <div class="grid grid--3">
+            <article class="card">
+              <h3 class="card__title">IP / 外设接口验证</h3>
+              <p class="card__desc">寄存器读写、非法组合、并发访问、边界值、时序异常触发。</p>
+            </article>
+            <article class="card">
+              <h3 class="card__title">协议栈一致性</h3>
+              <p class="card__desc">状态机驱动输入，覆盖握手/重传/异常分支，验证实现与规范一致。</p>
+            </article>
+            <article class="card">
+              <h3 class="card__title">固件与安全</h3>
+              <p class="card__desc">BootROM/TEE/驱动 IOCTL/命令解析：输入最小化与复现包特别关键。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" class="section section--alt">
+        <div class="container contact">
+          <div class="contact__copy">
+            <h2 class="section__title">把它改成“你的 ChipFuzzer”</h2>
+            <p class="section__desc">
+              如果你把以下信息发我，我可以把页面文案与模块名改成完全贴合你的真实项目，并加上截图/结果图：
+            </p>
+            <ul class="checklist">
+              <li>你希望强调的 3–5 个亮点（例如覆盖、复现、某协议适配）</li>
+              <li>支持的接口/协议列表</li>
+              <li>真实 CLI 命令或 README 链接</li>
+              <li>一张架构图/流程图（可选）</li>
+            </ul>
+          </div>
+
+          <div class="card contact__card">
+            <h3 class="card__title">占位信息（请替换）</h3>
+            <p class="card__desc">在 `index.html` 里搜索 “占位” 或 “示例”，即可快速替换成你的内容。</p>
+            <div class="kv">
+              <div class="kv__row"><span class="kv__k">项目主页</span><span class="kv__v">（占位）GitHub/Gitee</span></div>
+              <div class="kv__row"><span class="kv__k">邮箱</span><span class="kv__v">（占位）you@example.com</span></div>
+              <div class="kv__row"><span class="kv__k">团队</span><span class="kv__v">（占位）Your Lab / Company</span></div>
+            </div>
+            <div class="contact__btns">
+              <a class="btn btn--primary" href="#" aria-disabled="true" onclick="return false;">下载/文档（占位）</a>
+              <a class="btn btn--ghost" href="#features">回到特性</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+      <div class="container footer__inner">
+        <div class="footer__left">
+          <div class="brand brand--sm">
+            <div class="brand__logo" aria-hidden="true">CF</div>
+            <div class="brand__text">
+              <div class="brand__name">ChipFuzzer</div>
+              <div class="brand__tag">芯片验证框架展示页</div>
+            </div>
+          </div>
+          <p class="footer__meta">© <span id="year"></span> ChipFuzzer. All rights reserved.</p>
+        </div>
+        <div class="footer__right">
+          <a class="footer__link" href="#main">回到顶部</a>
+          <a class="footer__link" href="#quickstart">快速上手</a>
+          <a class="footer__link" href="#monitor">运行监控</a>
+          <a class="footer__link" href="#contact">联系</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="./assets/main.js"></script>
+  </body>
+</html>
+

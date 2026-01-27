@@ -1,0 +1,217 @@
+下面先用简单语言说明这段 Verilog 代码的功能与“覆盖点”,然后给出一段极简、顺序执行、无跳转/循环的 RISC‐V 汇编,用来在仿真中尽可能触发这些路径(一般通过驱动同名信号的寄存器模型或总线接口来间接生效;你需要在 testbench 中把这些寄存器与 DUT 信号连起来)。
+
+---
+
+## 1. 代码功能与覆盖点分析(抽象说明)
+
+代码主要有两个 always 块(其实你给的是片段):
+
+### 1.1 FSM(有限状态机)相关
+
+```verilog
+else if (fsm_q == 4'h4)
+  fsm_q <= (|iter_num_q) ? 4'h4 : 4'h8;
+else if (fsm_q != 4'h8 | finish_ready_i)
+  fsm_q <= 4'h1;
+fsm_q <= 4'h8;
+```
+
+这里存在三个关键覆盖点:
+
+1. `fsm_q == 4'h4` 且 `|iter_num_q` 为 1 时:  
+   - 路径:`fsm_q` 保持在 `4'h4`  
+2. `fsm_q == 4'h4` 且 `|iter_num_q` 为 0 时:  
+   - 路径:`fsm_q` 变为 `4'h8`  
+3. `fsm_q != 4'h8 | finish_ready_i` 成立时:  
+   - 路径:`fsm_q` 变为 `4'h1`  
+
+最后那行 `fsm_q <= 4'h8;` 看起来像是代码截取/格式问题(或者是综合后的多驱动片段),但在覆盖工具里,这一行也会被统计到,因此需要至少发生一次驱动到 `4'h8` 的行为(一般只要执行到该分支一次即可)。
+
+### 1.2 `iter_num_q` 和其他寄存器更新逻辑
+
+```verilog
+always @(posedge clock) begin
+  if (start_handshaked | fsm_q[1] | fsm_q[2] & (|iter_num_q)) begin
+    if (fsm_q[0]) begin
+      if (need_2_cycles_init)
+        iter_num_q <= {iter_num_q[3:2], op_l_shift_num_0[1:0]};
+      iter_num_q <=
+        | {4{_iter_num_d_T_11}} & 4'hC;
+    end else if (fsm_q[1])
+      iter_num_q <=
+        {2'h0, fp_fmt_q[0], 1'h0} | {4{fp_fmt_q[1]}} & 4'h5 | {4{fp_fmt_q[2]}} & 4'hC;
+    iter_num_q <= 4'(iter_num_q - 4'h1);
+  end
+  if (start_handshaked) begin
+    fp_fmt_q <= {_iter_num_d_T_11, _iter_num_d_T_7, _iter_num_d_T_4};
+    rm_q <= rm_i;
+    out_sign_0_q <= ~res_is_nan_0_d & op_i[63];
+    out_sign_1_q <= ~res_is_nan_1_d & op_i[31];
+    out_sign_2_q <= ~res_is_nan_2_d & op_i[47];
+    out_sign_3_q <= ~res_is_nan_3_d & op_i[15];
+    out_exp_0_q <= _out_exp_pre_0_T_24[11:1];
+    out_exp_1_q <= _out_exp_pre_1_T_17[8:1];
+    out_exp_2_q <= _out_exp_pre_2_T_7[5:1];
+    out_exp_3_q <= _out_exp_pre_3_T_7[5:1];
+    res_is_nan_0_q <= res_is_nan_0_d;
+    res_is_nan_1_q <= res_is_nan_1_d;
+    res_is_nan_2_q <= res_is_nan_2_d;
+    res_is_nan_3_q <= res_is_nan_3_d;
+    res_is_inf_0_q <= op_exp_is_max_0 & _u_lzc_0_empty_o;
+    res_is_inf_1_q <= op_exp_is_max_1 & _u_lzc_1_empty_o;
+    res_is_inf_2_q <= (&(op_i[46:42])) & _u_lzc_2_empty_o;
+    res_is_inf_3_q <= (&(op_i[14:10])) & _u_lzc_3_empty_o;
+    res_is_exact_zero_0_q <= op_is_zero_0;
+    res_is_exact_zero_1_q <= op_is_zero_1;
+    res_is_exact_zero_2_q <= op_is_zero_2;
+    res_is_exact_zero_3_q <= op_is_zero_3;
+    op_invalid_0_q <= op_invalid_0_d;
+  end
+end
+```
+
+外层条件:
+- `start_handshaked | fsm_q[1] | (fsm_q[2] & |iter_num_q)` 为 1 时,`iter_num_q` 有多种更新路径:
+  - `fsm_q[0] && need_2_cycles_init` 下的拼接更新;
+  - `fsm_q[0]` 下 `_iter_num_d_T_11` 控制的 `4'hC` 更新;
+  - `fsm_q[1]` 下 `fp_fmt_q` 组合成的值;
+  - 最后统一的 `iter_num_q - 1`;
+- `start_handshaked` 为 1 时,大量输出和标志寄存器被更新(NaN、Inf、Zero、exponent 等)。
+
+因此要覆盖:
+- `start_handshaked = 1` 的路径;
+- `fsm_q[0] = 1`、`fsm_q[1] = 1`、`fsm_q[2] = 1` 不同组合;
+- `need_2_cycles_init` 和 `_iter_num_d_T_11` 的不同取值;
+- 至少一次让 `res_is_nan_*_q`、`res_is_inf_*_q`、`res_is_exact_zero_*_q` 的赋值发生。
+
+---
+
+## 2. 汇编代码设计思路
+
+你没有给出 DUT 与 CPU 的接口细节(这些信号怎么被软件访问)。常见做法:
+
+- 用一组 memory‐mapped 寄存器,CPU 写入对应地址,相当于驱动:
+  - `fsm_q`
+  - `iter_num_q`
+  - `start_handshaked`
+  - `finish_ready_i`
+  - `need_2_cycles_init`
+  - `_iter_num_d_T_11`
+  - 以及与 `op_i`、`rm_i`、`fp_fmt_q` 等相关的控制/数据寄存器
+
+下面的汇编示例假定:  
+- 所有这些信号背后都有某种 memory‐mapped 控制寄存器;  
+- 你在 testbench 中把这些地址连到 DUT 的相应信号;  
+- 我只用简单顺序指令,依次写这些寄存器来制造不同场景,从而触发未覆盖代码。
+
+你只需把 `CTRL_BASE` 等地址在 testbench 里映射到合适的寄存器即可。
+
+---
+
+## 3. RISC‐V 汇编示例(顺序、无循环无跳转)
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 假设控制寄存器基址在 0x80000000(可根据 testbench 修改)
+    # offset 定义(由 testbench 决定实际连到哪个信号)
+    # 0x00 : fsm_q
+    # 0x04 : iter_num_q
+    # 0x08 : start_handshaked
+    # 0x0C : finish_ready_i
+    # 0x10 : need_2_cycles_init
+    # 0x14 : _iter_num_d_T_11
+    # 0x18 : fp_fmt_q
+    # 0x1C : rm_i
+    # 0x20 : op_i[63:32]
+    # 0x24 : op_i[31:0]
+    # 0x28 : 控制 NaN / Inf / Zero 标志的辅助控制(由 testbench 自行解释)
+
+    # 加载基地址到 t0
+    lui     t0, 0x80000        # t0 = 0x80000000
+
+    # 场景 1:fsm_q = 4'h4 且 iter_num_q 非零,触发分支 fsm_q == 4'h4 && |iter_num_q 为 1
+    li      t1, 0x4            # fsm_q = 4
+    sw      t1, 0(t0)          # 写 fsm_q
+    li      t1, 0x3            # iter_num_q = 3 (非零)
+    sw      t1, 4(t0)          # 写 iter_num_q
+
+    # 触发 start_handshaked = 1,使得第二个 always 块中 start_handshaked 分支被覆盖
+    li      t1, 1
+    sw      t1, 8(t0)          # start_handshaked = 1
+
+    # 设置 need_2_cycles_init = 1 和 _iter_num_d_T_11 = 1
+    # 用于覆盖 iter_num_q <= {iter_num_q[3:2], op_l_shift_num_0[1:0]} 和 iter_num_q <= |{4{_iter_num_d_T_11}} & 4'hC
+    li      t1, 1
+    sw      t1, 16(t0)         # need_2_cycles_init = 1
+    sw      t1, 20(t0)         # _iter_num_d_T_11 = 1
+
+    # 设定 fp_fmt_q, 以覆盖 fsm_q[1] 分支中对 iter_num_q 的组合逻辑
+    li      t1, 0x5            # 假设 fp_fmt_q 三位中有不同取值,示例:b101
+    sw      t1, 24(t0)         # fp_fmt_q = 0b101
+
+    # 设定 rm_i,用于覆盖 rm_q <= rm_i
+    li      t1, 0x2
+    sw      t1, 28(t0)         # rm_i = 2
+
+    # 设置 op_i,用于覆盖 out_sign_x_q / out_exp_x_q / NaN / Inf / Zero 等路径
+    # 这里给出一个组合:高/低 32 位不同值,testbench 中根据这些值控制 op_exp_is_max_x 等
+    li      t1, 0x7F800000     # float32 +Inf 形态(示例)
+    sw      t1, 32(t0)         # op_i[63:32]
+    li      t1, 0x00000000
+    sw      t1, 36(t0)         # op_i[31:0]
+
+    # 可以额外写一个控制寄存器,让 testbench 根据其位型构造:
+    # - res_is_nan_*_d
+    # - op_exp_is_max_*
+    # - op_is_zero_*
+    # 以同时覆盖 NaN / Inf / Zero 等所有赋值
+    li      t1, 0xF            # 低四位全 1,testbench 可解释为 “同时触发多种状态”
+    sw      t1, 40(t0)         # 辅助控制寄存器
+
+    # 场景 2:fsm_q = 4'h4 且 iter_num_q == 0,触发 fsm_q <= 4'h8 分支
+    li      t1, 0x4
+    sw      t1, 0(t0)          # fsm_q = 4
+    li      t1, 0x0
+    sw      t1, 4(t0)          # iter_num_q = 0
+
+    # 场景 3:fsm_q != 4'h8 | finish_ready_i 为 1,触发 fsm_q <= 4'h1 分支
+    li      t1, 0x3
+    sw      t1, 0(t0)          # fsm_q = 3 (!= 8)
+    li      t1, 1
+    sw      t1, 12(t0)         # finish_ready_i = 1
+
+    # 再次触发 start_handshaked = 1,给第二个 always 块再一次机会更新所有寄存器
+    li      t1, 1
+    sw      t1, 8(t0)
+
+    # 至此,通过多次写控制寄存器,我们人为构造了:
+    # - fsm_q==4 且 iter_num_q!=0 的情况
+    # - fsm_q==4 且 iter_num_q==0 的情况
+    # - fsm_q!=8 或 finish_ready_i==1 的情况
+    # 同时也多次激活 start_handshaked,使得
+    #   fp_fmt_q / rm_q / out_sign_*_q / out_exp_*_q / res_is_*_q 等赋值逻辑得到覆盖。
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+---
+
+### 使用说明
+
+1. 在你的 Verilog testbench 中:
+   - 将 `0x80000000 + offset` 映射为对应 DUT 信号的写控制寄存器;
+   - 在时钟上升沿根据写入值更新 `fsm_q`, `iter_num_q`, `start_handshaked`, `finish_ready_i`, `need_2_cycles_init`, `_iter_num_d_T_11` 等;
+   - 根据 `op_i` / 辅助控制寄存器内容造出 `res_is_nan_*_d`、`op_exp_is_max_*`、`op_is_zero_*` 等组合逻辑信号。
+
+2. 仿真时运行该 RISC‐V 程序,就会按顺序驱动这些信号,触发之前未覆盖的分支。
+
+如果你能提供实际的寄存器映射(哪些地址连到哪些 DUT 端口),我可以把上面的 offset 和具体写值进一步精简和定制,使覆盖更有针对性。

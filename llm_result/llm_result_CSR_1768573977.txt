@@ -1,0 +1,42 @@
+
+
+To construct a functional and valid RISC-V assembly program that fulfills the requirements, we need to eliminate all invalid instructions, such as `mov`, which is not a real RISC-V opcode. Instead, we simulate register-to-register moves using `addi dest, src, 0`.
+
+---
+
+### ✅ Instruction Explanation:
+- `addi a0, a2, 0`: This instruction copies the value from register `a2` into `a0` by adding zero — a common RISC-V idiom for simulating `mov`.
+- The program must terminate with a clean exit using the ecall mechanism.
+- The template specifies that no loops or branches/jumps are to be used. Hence, we will use a straightforward sequence of instructions.
+
+---
+
+### ✅ Final Assembly Code:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    addi a0, a2, 0    # Copy the value from register a2 to a0
+
+    # Exit the program with return code 0
+    li      gp, 1     # Not used in this context; retained for template compliance
+    li      a7, 93    # System call number for exit in RISC-V (Linux)
+    li      a0, 0     # Exit status 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+---
+
+### ✅ Notes on Correctness:
+- **`addi a0, a2, 0`** correctly replaces `mov a0, a2` using only standard RISC-V opcodes.
+- The program consists only of linear instructions with no branches or loops, satisfying the requirement for minimal control flow.
+- The exit code is left unchanged to follow the template structure, and it ensures a graceful termination via `ecall` with system call 93 (used for exiting in many RISC-V environments like Linux or Spike simulator).
+
+---
+
+### ✅ Summary:
+This assembly program correctly replaces the invalid `mov` instruction with an equivalent `addi` operation, ensures correct and valid RISC-V syntax, maintains execution flow without using branching or looping constructs, and exits cleanly.

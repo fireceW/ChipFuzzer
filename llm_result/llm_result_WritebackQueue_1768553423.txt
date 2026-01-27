@@ -1,0 +1,60 @@
+The Verilog fragment you provided is part of an arbiter: it computes “winner” signals as an AND of `readys_readys[i]` and `_entries_i_io_mem_release_valid`, and then has assertions about the consistency of the `winner` signals and some `state_*` bits.
+
+This logic is evaluated in hardware; it is not directly executed by the CPU. From the point of view of your instruction-set simulator / CPU core, there is no special instruction sequence that “executes” this Verilog code. What you can do in assembly is:
+
+- Exercise the CPU in a simple, correct way so that the SoC boots and runs.
+- Rely on your testbench / environment to drive `readys_readys`, `_entries_*_io_mem_release_valid`, and `state_*` bits so that the arbiter logic toggles and the assertions/coverage points are hit.
+
+Given your constraints:
+- RISC‐V assembly
+- No loops, no jumps, simple linear flow
+- Must be correct, executable, and minimal
+- Exit via the provided `ecall` sequence
+
+Here is a minimal, valid RISC‐V assembly program that simply runs and then exits, suitable to integrate into a test so that your Verilog logic is evaluated by the RTL simulation environment:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 在这里,CPU 只是顺序执行几条简单指令。
+    # 具体对 Arbiter 代码的覆盖,需要在 testbench/环境中驱动相关信号
+    # (readys_readys、_entries_*_io_mem_release_valid、state_* 等)。
+
+    # 简单的算术和访存操作,确保流水线/总线被使用(如有需要):
+    li      t0, 0x1
+    li      t1, 0x2
+    add     t2, t0, t1      # t2 = 3
+
+    # 可以写入一个内存地址(假设 0 处是可写的 RAM,在普通仿真中一般成立)
+    la      t3, data_area
+    sw      t2, 0(t3)
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+    .section .data
+data_area:
+    .word   0
+```
+
+说明:
+
+- 程序从 `_start` 开始,线性执行,无循环、无跳转。
+- 指令均为标准 RISC‐V RV32I 指令,语法适用于常见工具链(如 `riscv64-unknown-elf-gcc` 的汇编器)。
+- 使用一个小的数据区 `data_area` 做一次简单的存储操作,程序可在普通仿真环境中正确执行。
+- 退出逻辑完全按你给出的模板保留不变。
+
+要真正“覆盖”你列出的 Verilog 代码,需要在仿真 testbench/驱动环境中:
+
+- 产生多种组合的 `readys_readys[i]` 与 `_entries_i_io_mem_release_valid` 为 0/1 的情况,以使 `winner_*` 信号为 0 和 1 都出现;
+- 驱动 `valids`、`winner` 向量,让 Arbiter.scala 第 77、79 行的断言条件被求值(既包括断言成立的情况,也可考虑故意制造断言失败用例,如果你想测试错误路径);
+- 改变 `state_*` 寄存器(通过其上游控制逻辑)以让相应组合逻辑被激活。
+
+CPU 侧的汇编程序只需要保持运行一段时间并进行正常的指令/总线活动,剩下的由 Verilog 仿真环境完成。

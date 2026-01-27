@@ -1,0 +1,150 @@
+
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize data sources
+    li t0, 0x10    # t1_wSpec_0_data
+    li t1, 0x20    # t1_wSpec_1_data
+    li t2, 0x30    # t1_wSpec_2_data
+    li t3, 0x40    # t1_wSpec_3_data
+    li t4, 0x50    # t1_wSpec_4_data
+    
+    # Create bit masks
+    li t5, 1
+    slli t6, t5, 4   # Bit 4 mask (0x10)
+    slli t7, t5, 5   # Bit 5 mask (0x20)
+    slli t8, t5, 9   # Bit 9 mask (0x200)
+    
+    # Case 1: Default selection (all address bits cleared)
+    li t9, 0      # t1_wSpec_addr_1
+    li t10, 0     # t1_wSpec_addr_4
+    li t11, 0     # t1_wSpec_addr_5
+    
+    and t12, t11, t7
+    bnez t12, case1_alt
+    
+    and t12, t10, t7
+    bnez t12, case1_t4
+    
+    and t12, t9, t6
+    bnez t12, case1_t1
+    
+    mv a1, t0
+    j case1_done
+    
+case1_alt:
+    and t12, t11, t7
+    bnez t12, case1_t4
+    j case1_t3
+    
+case1_t4:
+    mv a1, t4
+    j case1_done
+
+case1_t3:
+    mv a1, t3
+    j case1_done
+    
+case1_t1:
+    mv a1, t1
+    
+case1_done:
+    # Case 1 complete
+    
+    # Case 2: Select t1 (bit 4 set)
+    addi t9, t6, 0
+    and t12, t9, t6
+    bnez t12, case2_t1
+    
+    # Shouldn't get here
+    mv a1, t0
+    j case2_done
+    
+case2_t1:
+    mv a1, t1
+    
+case2_done:
+    # Case 2 complete
+    
+    # Case 3: Select t2 (direct path)
+    li t9, 0x400
+    and t12, t11, t7
+    bnez t12, case3_alt
+    
+    and t12, t10, t7
+    bnez t12, case3_t4
+    
+    andi t12, t9, 0x40
+    bnez t12, case3_t1
+    
+    mv a1, t2
+    
+case3_alt:
+case3_t4:
+case3_t1:
+case3_done:
+    # Case 3 complete
+    
+    # Case 4: Select t3 or t4 (bits set)
+    addi t10, t7, 0
+    addi t11, t7, 0
+    
+    and t12, t11, t7
+    bnez t12, case4_t4
+    
+    and t12, t10, t7
+    bnez t12, case4_t3
+    
+    mv a1, t0
+    
+case4_t4:
+    mv a1, t4
+    j case4_done
+
+case4_t3:
+    mv a1, t3
+    
+case4_done:
+    # Case 4 complete
+
+    # Case 5: Address bit 9 selection
+    addi t9, t8, 0
+    addi t10, t8, 0
+    addi t11, t8, 0
+    
+    andi t12, t11, 0x200
+    bnez t12, case5_t4
+    
+    andi t12, t10, 0x200
+    bnez t12, case5_t3
+    
+    andi t12, t9, 0x200
+    bnez t12, case5_t1
+    
+    mv a1, t0
+    
+case5_t4:
+    mv a1, t4
+    j case5_done
+
+case5_t3:
+    mv a1, t3
+    j case5_done
+
+case5_t1:
+    mv a1, t1
+    
+case5_done:
+    # Case 5 complete
+
+    # Exit program
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```

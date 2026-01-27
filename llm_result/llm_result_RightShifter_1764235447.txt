@@ -1,0 +1,33 @@
+The line “input io_msb” indicates a single-bit input port representing the most significant bit (MSB). To cover it, it should be driven to both 0 and 1. The following RISC-V assembly program computes the MSB from two values (one with MSB=0 and one with MSB=1) and stores the results to a memory location labeled io_msb, thereby covering both states without loops or jumps.
+
+assembly
+.section .text
+.global _start
+
+_start:
+    # 汇编程序去执行 uncovered code:将 MSB 分别置为 0 和 1,并写入 io_msb
+
+    # MSB = 0 情况:使用 0x00000000
+    li      t0, 0
+    srli    t1, t0, 31           # 提取 MSB -> t1 = 0
+    la      t2, io_msb
+    sw      t1, 0(t2)            # io_msb = 0
+
+    # MSB = 1 情况:使用 1 << 31 = 0x80000000
+    li      t0, 1
+    slli    t0, t0, 31           # t0 = 0x80000000
+    srli    t1, t0, 31           # 提取 MSB -> t1 = 1
+    sw      t1, 0(t2)            # io_msb = 1
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+.section .data
+    .align  4
+io_msb:
+    .word   0

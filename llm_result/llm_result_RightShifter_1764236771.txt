@@ -1,0 +1,21 @@
+The fragment “input io_msb” declares an input signal named io_msb, which indicates the most significant bit (MSB) of some bus or value. To “cover” it, we exercise the MSB by setting it to 1, reading it, then clearing it to 0 and reading it again, using simple bit operations without loops or jumps.
+
+assembly
+.section .text
+.global _start
+
+_start:
+    # 将最高位(MSB)置1、读取,再清零并再次读取,以覆盖 io_msb 的两种状态
+    li      t0, 0x80000000      # t0: 仅MSB为1,模拟 io_msb=1
+    srli    t1, t0, 31          # t1: 提取MSB到最低位(应为1)
+    li      t2, 0x80000000      # t2: MSB掩码
+    xor     t0, t0, t2          # t0: 仅MSB从1切换为0,模拟 io_msb=0
+    srli    t3, t0, 31          # t3: 再次提取MSB到最低位(应为0)
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000

@@ -1,0 +1,45 @@
+Creating assembly code to directly cover a piece of higher-level code such as Verilog or similar can be quite tricky since hardware description languages (HDLs) deal with abstract hardware constructs and states, whereas assembly instructions typically deal directly with hardware registers and memory. Furthermore, assembly code generally doesn't map directly to changing states in an HDL-controlled finite state machine (FSM).
+
+For simulation purposes in an assembly setting, simply covering the states and transitions will not reflect the dynamic nature of HDL code like fsm states, conditional updates, and signal transitions. However, given the task and constraints (such as avoiding loops and jumps), what can be done is to simulate setting the initial transitions based on given flags and conditional states for this review.
+
+Here's a simplified representation in assembly, considering setting predefined registers:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Simulate setting FSM state and transitions
+    # assuming iter_num_q, fsm_q etc. in registers like t0, t1, etc.
+
+    # Predefine (constant) values
+    li t0, 4  # FSM state
+    li t1, 1  # iter_num_q and other operations can be assumed as mask conditions
+    li t2, 8  # Another FSM state 4'h8 state in usage
+    li t3, 0  # start_handshaked equivalent state control
+    
+    # Set conditionals (these are not directly Verilog FSM transitions)
+    # First conditional set
+    li t4, 0x4   # Example: fsm_q = 4'h4
+    li t5, 0x8   # Example: fsm_q = 4'h8
+    or t4, t0, t0  # Example logic setting new states based on conditions
+    and t5, t1, t1  # Another condition manipulation
+
+    # Final states, here you would apply equivalent of handshakes and enables
+    mv t6, t3   # Decide based on handshake logic
+    add t7, t0, t0  # Sample calculation given iter_num_q equivalence
+    
+    # Applying and storing simplistic output operation (not real HDL logic here)
+    # More of mock placeholder for FSM equivalent operations.
+    xor t8, t7, t7  # Output operations managed in another register settings
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Keep in mind this is a very high-level translation meant for illustration purposes, considering simple manipulations. The above doesn't "execute" your HDL in the truest sense, but it provides a structure and process that aligns with the finite state transitions and handling in basic instruction form. In reality, an HDL simulation would require substantial bus controls, status line changes, and logic gate level manipulations not captured above.

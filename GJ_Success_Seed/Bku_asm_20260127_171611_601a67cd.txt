@@ -1,0 +1,3 @@
+本测试用例主要覆盖了 Bku 模块。
+该用例成功提升了全局代码覆盖率，减少了 72 行未覆盖代码。
+新覆盖的代码包括：%000000         state_vec_108 <= ~touch_way_0_bits...、%000000       else if (io_archWritePorts_2_wen & i...、%000000       else if (io_archWritePorts_1_wen & i... 等。

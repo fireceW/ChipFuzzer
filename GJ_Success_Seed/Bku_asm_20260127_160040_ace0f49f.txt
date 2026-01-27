@@ -1,0 +1,3 @@
+本测试用例主要覆盖了 Bku 模块。
+该用例成功提升了全局代码覆盖率，减少了 786 行未覆盖代码。
+新覆盖的代码包括：%000000               : entryCanEnqSeq_4_14 ? io_e...、%000000               : entryCanEnqSeq_4_18 ? io_e...、%000000               : entryCanEnqSeq_4_22 ? io_e... 等。

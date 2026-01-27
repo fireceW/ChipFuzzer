@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+*.egg
+
+# 日志和临时文件
+*.log
+*.tmp
+/tmp/
+GJ_log/*.log
+# 统计文件可以选择性提交，这里先忽略，需要时可以手动添加
+# GJ_log/statistics_*.json
+
+# 覆盖率相关数据文件（通常很大，不提交）
+coverage.info
+*.dat
+logs/
+logs_global/
+logs2/
+coverage_gj/
+annotated/
+
+# 成功案例二进制文件（通常很大）
+GJ_Success_Seed/*.bin
+GJ_Success_Seed/*.S
+# 但保留报告文件
+# !GJ_Success_Seed/*.txt
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.bak
+*.backup
+
+# 临时测试文件
+testcase/*.bin
+testcase/*.elf
+testcase/*.S
+testcase/*.o
+
+# 运行时的临时文件
+runs/
+*.pid
+
+# LLM 输出调试文件（可选，如果很大可以忽略）
+LLMoutput/
+
+# 分析日志（可选）
+analysis_log/
+
+# 环境变量和敏感配置（如果有）
+.env
+*.key
+*.pem
+
+# 编译产物
+*.o
+*.a
+*.so
+build/
+*.exe
+
+# 数据库文件（如果有）
+*.db
+*.sqlite
+*.sqlite3

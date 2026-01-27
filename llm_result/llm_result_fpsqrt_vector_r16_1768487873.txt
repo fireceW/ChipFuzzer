@@ -1,0 +1,144 @@
+The uncovered RTL code is a fragment of a floating‐point pipeline with:
+
+- A small FSM (`fsm_q`) that needs to visit:
+  - state `4'h4` with `iter_num_q` both zero and non‐zero (for `(|iter_num_q) ? 4'h4 : 4'h8`)
+  - a path where `fsm_q != 4'h8` **or** `finish_ready_i` is true to force `fsm_q <= 4'h1`
+  - a path where `fsm_q` ends up as `4'h8`
+
+- An iteration counter `iter_num_q` updated under:
+  - `start_handshaked` = 1, `fsm_q[0]` = 1, with and without `need_2_cycles_init`
+  - `fsm_q[1]` = 1 (middle state) causing different initial iteration patterns
+  - decrement `iter_num_q <= iter_num_q - 1` while `fsm_q[2]` and `|iter_num_q` are true
+
+- Many latched outputs driven when `start_handshaked` is 1, using:
+  - FP operand bits `op_i[63:0]`
+  - format bits `fp_fmt_q`
+  - rounding mode `rm_i`
+  - flags like `res_is_nan_*_d`, `op_is_zero_*`, `op_exp_is_max_*`, `*_empty_o`
+  - fields that should produce NaN, Inf, or zero cases
+
+In the typical integration, these inputs are driven from a memory‐mapped test‐vector region in RAM, loaded by assembly code. To “cover” the code, we usually:
+
+- Write specific operand patterns into pre‐agreed data locations (test_vec*, ctrl_vec*).
+- The DUT (Verilog) reads them and exercises the RTL.
+
+Following the style of your given example, below is a concise RISC‐V assembly program that:
+
+- Populates 8 FP operand slots and 4 control slots.
+- Uses patterns designed to trigger NaN, Inf, and zero handling, and a variety of format/rounding/iteration cases.
+- Is straight‐line (no branches/loops) and respects your exit sequence.
+
+You will need your testbench to connect these labels to the DUT signals (e.g., `op_i`, `rm_i`, `fp_fmt_q`, `start_handshaked`, `finish_ready_i`, etc.) as is done for the already “successfully covered” example.
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 设置4个双精度/打包操作数,制造 NaN / Inf / 零 / 正常数等情况
+    # test_vec0: 64b 打包两个单精度,制造 NaN + Inf
+    # 高32: 0x7FC00000 (QNaN), 低32: 0x7F800000 (+Inf)
+    lui     a0, 0x7FC00
+    addi    a0, a0, 0x000      # a0 = 0x7FC00000
+    slli    a0, a0, 32
+    lui     t0, 0x7F800
+    addi    t0, t0, 0x000      # t0 = 0x7F800000
+    or      a0, a0, t0
+    la      t1, test_vec0
+    sd      a0, 0(t1)
+
+    # test_vec1: 32b,制造 0x00000000 (exact zero)
+    li      a1, 0x0
+    la      t2, test_vec1
+    sw      a1, 0(t2)
+
+    # test_vec2: 32b,制造非规格化/普通数用于非 NaN/Inf 情况
+    li      a2, 0x00400001
+    la      t3, test_vec2
+    sw      a2, 0(t3)
+
+    # test_vec3: 64b,制造 double NaN
+    lui     a3, 0x7FF80        # 0x7FF80000 upper 20 bits
+    slli    a3, a3, 12         # 0x7FF800000000
+    addi    a3, a3, 0x000      # 保持对齐
+    la      t4, test_vec3
+    sd      a3, 0(t4)
+
+    # test_vec4: 16b,制造 half-precision Inf
+    li      a4, 0x7C00
+    la      t5, test_vec4
+    sh      a4, 0(t5)
+
+    # test_vec5: 64b,制造负零和负 Inf 打包
+    lui     a5, 0x80000        # sign bit set
+    slli    a5, a5, 32         # 上半部分负零
+    lui     t6, 0xFF800        # 0xFF800000 (−Inf 单精度)
+    addi    t6, t6, 0x000
+    or      a5, a5, t6
+    la      t6, test_vec5
+    sd      a5, 0(t6)
+
+    # test_vec6: 16b,制造 half-precision NaN
+    li      a6, 0x7E00
+    la      t0, test_vec6
+    sh      a6, 0(t0)
+
+    # test_vec7: 64b,制造普通有限数
+    lui     t1, 0x3FF00        # ~1.0 double
+    slli    t1, t1, 12
+    la      t2, test_vec7
+    sd      t1, 0(t2)
+
+    # 控制向量:
+    # ctrl_vec0: 使能 start_handshaked = 1,并设置 iter_num 非零以覆盖 |iter_num_q 分支
+    li      t3, 0x1
+    la      t4, ctrl_vec0
+    sw      t3, 0(t4)
+
+    # ctrl_vec1: 设置 fp_fmt / 状态,覆盖 need_2_cycles_init 和 fsm_q[0..2] 路径
+    # 例如 0x6: 二进制 0110,可映射到 {fp_fmt[2:0], need_2_cycles_init}
+    li      t5, 0x6
+    la      t6, ctrl_vec1
+    sw      t5, 0(t6)
+
+    # ctrl_vec2: 设置 rm_i = 2 (round toward +inf),同时给 iter_num 初值非零
+    li      t0, 0x2
+    la      t1, ctrl_vec2
+    sw      t0, 0(t1)
+
+    # ctrl_vec3: 触发 finish_ready_i = 1,覆盖 fsm_q != 8 | finish_ready_i 的分支
+    li      t2, 0x1
+    la      t3, ctrl_vec3
+    sw      t2, 0(t3)
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+
+.section .data
+    test_vec0:  .dword 0
+    test_vec1:  .word  0
+    test_vec2:  .word  0
+    test_vec3:  .dword 0
+    test_vec4:  .half  0
+    test_vec5:  .dword 0
+    test_vec6:  .half  0
+    test_vec7:  .dword 0
+    ctrl_vec0:  .word  0
+    ctrl_vec1:  .word  0
+    ctrl_vec2:  .word  0
+    ctrl_vec3:  .word  0
+```
+
+This program is:
+
+- Valid RISC‐V assembly.
+- Straight‐line (no loops or branches).
+- Uses only simple immediates, loads of addresses via `la`, and stores to the test/control vectors.
+- Ends with your required exit sequence.
+
+As long as your Verilog testbench maps these data labels to the DUT’s inputs in the same style as your “successfully covered” example, the above should drive the FSM and iteration logic so the previously uncovered paths execute.

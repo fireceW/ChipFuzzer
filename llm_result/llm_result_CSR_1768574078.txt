@@ -1,0 +1,35 @@
+
+
+.section .text
+.global _start
+
+_start:
+    # Load immediate values into registers
+    li      t0, 0x1234      # Load 0x1234 into t0
+    li      t1, 0x5678      # Load 0x5678 into t1
+
+    # Perform a simple arithmetic operation
+    add     t2, t0, t1      # t2 = t0 + t1
+
+    # The following instructions store the result in memory
+    # Create space in stack
+    addi    sp, sp, -8      # Allocate 8 bytes on stack
+    # Store values in memory
+    sd      t2, 0(sp)       # Store the result at the top of the stack
+
+    # Assemble program exit logic
+    li      gp, 1            # gp=1, exit return value (not actually used as gp here)
+    li      a7, 93           # a7=93, system call number for exit
+    li      a0, 0            # a0=0, exit status code
+    ecall                    # Make the system call
+
+    unimp
+    .insn   2, 0x0000
+
+This assembly program:
+1. Loads two immediate hexadecimal values (0x1234 and 0x5678) into temporary registers
+2. Adds them together and stores the result in another register
+3. Creates space on the stack and stores the result in memory
+4. Finally, it exits the program with status code 0 using the ecall instruction
+
+The code follows the given template, uses a sequential execution flow without loops or jumps, and is concise while demonstrating various assembly operations like immediate loading, arithmetic, and memory operations in addition to the required exit system call.

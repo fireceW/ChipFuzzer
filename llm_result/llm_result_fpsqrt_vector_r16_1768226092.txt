@@ -1,0 +1,59 @@
+To convert the given code into assembly, we need to understand its logic. The provided code appears to be a snippet of register assignments and conditions related to a state machine (`fsm_q`) and some flag registers based on the current state and inputs.
+
+However, translating such high-level code directly into assembly in a meaningful way requires knowledge of specifics like register allocations and what each condition and operation represents within the assembly context.
+
+Since immediate translation and coverage checking are complex without specific architectural details, simplified pseudo-assembly resembling RISC-V (assuming we're taking a RISC-like approach) can be provided. It serves as a demonstration for manual operations and covers basic assignments or actions that could be implied by the high-level logic.
+
+Here's a pseudo-assembly setup for the uncovered code based on state assignments and conditions:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # Initialize variables (replace with actual register assignments)
+    li t0, 0x4          # fsm_q = 4
+    li t1, 0x8          # fsm_q = 8
+    li t2, 0x1          # Other values used
+
+    # Simulate state machine logic
+    # "else if (fsm_q == 4'h4)" --> checking if fsm_q is 4
+    li t3, 0  # Assume iter_num_q stored in register t3
+    bne t0, t3, skip_update
+    move t3, t1   # Set to new state based on condition
+skip_update:
+
+    # "else if (fsm_q != 4'h8 | finish_ready_i)"
+    # Simplify logical ops; just for example flow
+    li t4, 1  # Assume finish_ready_i stored in t4
+    beq t1, t4, skip_assign  # Checking logical or condition
+    move t0, t2   # Set state to 0x1
+skip_assign:
+
+    # Assume some simple operation in iter_num_q
+    # For example: iter_num_q <= iter_num_q - 1
+    addi t3, t3, -1
+
+    # "if (start_handshaked) begin"
+    # Assume start_handshaked in register t5
+    li t5, 0  # Assuming a false condition to show structure
+    beq t5, t5, end_logic # Placeholder to skip
+
+    # Further operations based on handshaked (ignoring actual logic)
+
+end_logic:
+    # Exit logic
+    li      gp, 1
+    li      a7, 93
+    li      a0, 0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+**Key considerations:**
+- This assembly snippet is conceptual. You need actual specifics of registers (`t0-t5`, etc.), alongside architectural ops for "finish_ready_i", "iter_num_q", etc.
+- Conditionally redirect flow based on logical checks as your high-level code implies.
+- System exit section at the end is unaltered for program termination.
+
+Please adjust registers (`t0-t5`, etc.) and instructions as per your actual CPU architecture and specifics required by the problem demands (like fsm states and relevant flags). This pseudo-assembly code is simplified to avoid complex looping and jumping while covering some presumed control logic.

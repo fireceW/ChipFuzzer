@@ -1,0 +1,79 @@
+The code you showed is not normal software code; it’s a fragment of Verilog RTL, most likely from a floating‐point square‐root unit. Lines like:
+
+```verilog
+rt_q <= rt_iter_init;
+else if (fsm_q[1])
+  rt_q <= rt_iter_init;
+  rt_q <= _u_fpsqrt_r16_block_nxt_rt_o;
+...
+if (start_handshaked | fsm_q[1] | fsm_q[2]) begin
+  if (fsm_q[0]) begin
+    if (need_2_cycles_init)
+      rt_m1_q <= {rt_m1_q[52], _op_frac_l_shifted_s5_to_s2_T_3[51:0]};
+    rt_m1_q <= rt_m1_iter_init;
+...
+```
+
+These statements describe hardware register behavior under certain control signals (`fsm_q`, `start_handshaked`, `need_2_cycles_init`, etc.). They are not something that a CPU “executes” as instructions; they are synthesized into gates and flip‐flops.
+
+Because of that:
+
+- There is no direct way to “translate” this RTL fragment into a one‐to‐one RISC‐V assembly sequence.
+- “Covering” this code in a simulation or coverage report must be done in the HDL/testbench world (by driving the signals to exercise each branch), not by a standalone RISC‐V assembly program.
+
+However, you asked specifically for:
+
+- A RISC‐V assembly program that is:
+  - Completely correct and executable
+  - As concise as possible
+  - Sequential (no loops, no branches/jumps)
+  - Written in the given template
+
+Given those constraints and the fact that we cannot directly access RTL signals (`fsm_q`, `rt_q`, etc.) from user‐mode RISC‐V code, the best we can do is provide a minimal, valid assembly program that could, for example, be used in a co‐simulation or as a placeholder workload while the actual HDL testbench drives the DUT to hit those branches.
+
+Below is a correct, executable, and simple RISC‐V assembly program (64‐bit, using standard Linux `exit` syscall 93) that performs some dummy computations to mimic “activity” but has no branches or loops, then exits:
+
+```assembly
+.section .text
+.global _start
+
+_start:
+    # 简单的顺序指令,用寄存器操作来模拟“执行过程”
+    # 这些与 RTL 中的 rt_q / rt_m1_q / mask_q 行为没有直接硬件连接,
+    # 仅作为一个无跳转的、可执行的最小示例程序。
+
+    li      t0, 0x1          # t0 <- 1
+    li      t1, 0x2          # t1 <- 2
+    add     t2, t0, t1       # t2 <- t0 + t1  (3)
+    slli    t3, t2, 2        # t3 <- t2 << 2 (12)
+    ori     t4, t3, 0x5      # t4 <- t3 | 5
+    andi    t5, t4, 0xF      # t5 <- t4 & 0xF
+    add     t6, t5, t2       # t6 <- t5 + t2
+
+    # 下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
+```
+
+Key points:
+
+- No loops, no branches/jumps (`beq`, `bne`, `jal`, etc. are not used).
+- Only simple sequential instructions: `li`, `add`, `slli`, `ori`, `andi`.
+- Ends with the exact exit sequence you required, unmodified.
+- This assembly is syntactically correct for standard RISC‐V toolchains (e.g., `riscv64-unknown-elf-as` or `riscv64-linux-gnu-as`) and will run and exit cleanly.
+
+To actually get coverage for your Verilog code:
+
+- You need an HDL testbench (SystemVerilog/Verilog) that:
+  - Drives `start_handshaked`, `fsm_q`, `need_2_cycles_init`, and related signals through the combinations that:
+    - Enter the `need_2_cycles_init` path
+    - Enter the `else if (fsm_q[1])` paths
+    - Exercise the `mask_q` shifting and initialization paths
+    - Exercise `f_r_s_q` initialization and iteration paths
+- Then run simulation with coverage enabled (e.g., `vcs`, `questa`, `xcelium`, etc.) and inspect line / branch coverage.
+
+The RISC‐V assembly program above cannot directly influence those internal DUT signals unless you have a larger co‐simulation environment where CPU writes to memory‐mapped registers end up driving those signals inside the RTL. If you have such a setup and can share the memory map / interface, I can help tailor the assembly to perform specific writes/reads that are more closely aligned with the DUT’s control logic.

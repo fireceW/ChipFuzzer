@@ -1,0 +1,26 @@
+The snippet “input io_msb” indicates a 1-bit input signal intended to represent or control the most-significant bit (MSB). To cover it, you typically need to exercise both cases where the MSB is 1 and 0. The following RISC-V assembly sets up a value with MSB=1 and another with MSB=0, extracts the MSB into registers (without branches or loops), and then exits.
+
+assembly
+.section .text
+.global _start
+
+_start:
+    #汇编程序去执行 uncovered code
+    # Case 1: MSB = 1 (64-bit)
+    li      t0, 1
+    slli    t0, t0, 63        # t0 = 0x8000000000000000
+    srai    t1, t0, 63        # extract MSB to all bits
+    andi    t1, t1, 1         # t1 = 1
+
+    # Case 2: MSB = 0 (64-bit)
+    li      t2, 0             # t2 = 0x0000000000000000
+    srai    t3, t2, 63        # extract MSB to all bits
+    andi    t3, t3, 1         # t3 = 0
+
+    //下面为汇编程序退出逻辑,请不要修改
+    li      gp,1
+    li      a7,93
+    li      a0,0
+    ecall
+    unimp
+    .insn   2, 0x0000
