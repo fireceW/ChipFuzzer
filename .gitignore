@@ -17,8 +17,11 @@ env/
 *.tmp
 /tmp/
 GJ_log/*.log
-# 统计文件可以选择性提交，这里先忽略，需要时可以手动添加
-# GJ_log/statistics_*.json
+# 统计与报告（运行产物，不提交到 V2）
+GJ_log/statistics_*.json
+GJ_log/module_report_*.txt
+GJ_Success_Seed/*.txt
+agent_memory/*_memory.json
 
 # 覆盖率相关数据文件（通常很大，不提交）
 coverage.info

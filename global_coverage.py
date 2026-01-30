@@ -215,14 +215,18 @@ class GlobalCoverageManager:
         
         return info
 
-    def get_total_coverage_from_genhtml(self) -> dict:
+    def get_total_coverage_from_genhtml(self, use_cache=True) -> dict:
         """
         通过 genhtml 获取总覆盖率百分比
+        
+        参数:
+            use_cache: 如果解析失败，是否使用上次的有效值（默认 True）
         
         返回:
             包含覆盖率百分比的字典
         """
         import re
+        import time
         coverage_info_file = os.path.join(self.project_root, "coverage.info")
         
         # 如果 coverage.info 不存在，尝试从 sum_gj.dat 生成
@@ -235,39 +239,98 @@ class GlobalCoverageManager:
             print(f"⚠️ coverage.info 不存在，尝试从 sum_gj.dat 生成...")
             if self.update_coverage_info():
                 print(f"✅ 已从 sum_gj.dat 生成 coverage.info")
+                # 等待文件写入完成
+                time.sleep(0.5)
             else:
                 return {"coverage_percentage": 0.0, "covered": 0, "total": 0, "status": "error", "message": "无法从 sum_gj.dat 生成 coverage.info"}
         
+        # 检查文件状态：确保文件存在且大小正常
+        if not os.path.exists(coverage_info_file):
+            if use_cache and hasattr(self, '_last_valid_coverage'):
+                print(f"⚠️ coverage.info 不存在，使用上次有效值: {self._last_valid_coverage['coverage_percentage']:.2f}%")
+                return self._last_valid_coverage
+            return {"coverage_percentage": 0.0, "covered": 0, "total": 0, "status": "error", "message": "coverage.info 不存在"}
+        
+        file_size = os.path.getsize(coverage_info_file)
+        if file_size == 0:
+            if use_cache and hasattr(self, '_last_valid_coverage'):
+                print(f"⚠️ coverage.info 为空，使用上次有效值: {self._last_valid_coverage['coverage_percentage']:.2f}%")
+                return self._last_valid_coverage
+            return {"coverage_percentage": 0.0, "covered": 0, "total": 0, "status": "error", "message": "coverage.info 文件为空"}
+        
+        # 等待文件稳定（如果文件刚刚被更新，等待一下确保写入完成）
         try:
-            result = subprocess.run(
-                ["genhtml", "coverage.info", "--output-directory", "coverage_gj"],
-                cwd=self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-            
-            output = result.stdout + result.stderr
-            
-            # 解析 "Overall coverage rate: lines......: 72.2% (463483 of 642121 lines)"
-            match = re.search(r'lines\.+:\s*([\d.]+)%\s*\((\d+)\s+of\s+(\d+)\s+lines\)', output)
-            
-            if match:
-                percentage = float(match.group(1))
-                covered = int(match.group(2))
-                total = int(match.group(3))
-                return {
-                    "coverage_percentage": percentage,  # 统一使用 coverage_percentage
-                    "percentage": percentage,  # 保持向后兼容
-                    "covered": covered,
-                    "total": total,
-                    "status": "ok"
-                }
-            else:
-                return {"coverage_percentage": 0.0, "percentage": 0.0, "covered": 0, "total": 0, "status": "parse_error", "message": "无法解析 genhtml 输出"}
+            mtime1 = os.path.getmtime(coverage_info_file)
+            time.sleep(0.3)  # 等待 300ms
+            mtime2 = os.path.getmtime(coverage_info_file)
+            if mtime1 != mtime2:
+                # 文件还在更新，再等待一下
+                time.sleep(0.5)
+        except:
+            pass
+        
+        # 重试机制：最多重试 2 次
+        max_retries = 2
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    # 重试前等待
+                    time.sleep(1)
+                    print(f"🔄 重试 genhtml 解析（第 {attempt + 1} 次）...")
                 
-        except Exception as e:
-            return {"coverage_percentage": 0.0, "percentage": 0.0, "covered": 0, "total": 0, "status": f"error: {e}"}
+                result = subprocess.run(
+                    ["genhtml", "coverage.info", "--output-directory", "coverage_gj"],
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                )
+                
+                output = result.stdout + result.stderr
+                
+                # 解析 "Overall coverage rate: lines......: 72.2% (463483 of 642121 lines)"
+                match = re.search(r'lines\.+:\s*([\d.]+)%\s*\((\d+)\s+of\s+(\d+)\s+lines\)', output)
+                
+                if match:
+                    percentage = float(match.group(1))
+                    covered = int(match.group(2))
+                    total = int(match.group(3))
+                    result_data = {
+                        "coverage_percentage": percentage,  # 统一使用 coverage_percentage
+                        "percentage": percentage,  # 保持向后兼容
+                        "covered": covered,
+                        "total": total,
+                        "status": "ok"
+                    }
+                    # 保存为有效值
+                    self._last_valid_coverage = result_data
+                    return result_data
+                else:
+                    last_error = "无法解析 genhtml 输出"
+                    # 记录输出用于调试（只记录最后 500 字符，避免太长）
+                    debug_output = output[-500:] if len(output) > 500 else output
+                    print(f"⚠️ genhtml 输出解析失败（尝试 {attempt + 1}/{max_retries}）")
+                    print(f"   genhtml 输出（最后 500 字符）: {debug_output}")
+                    
+            except subprocess.TimeoutExpired:
+                last_error = "genhtml 执行超时"
+                print(f"⚠️ genhtml 执行超时（尝试 {attempt + 1}/{max_retries}）")
+            except Exception as e:
+                last_error = f"执行异常: {e}"
+                print(f"⚠️ genhtml 执行异常（尝试 {attempt + 1}/{max_retries}）: {e}")
+        
+        # 所有重试都失败，使用缓存或返回错误
+        if use_cache and hasattr(self, '_last_valid_coverage'):
+            print(f"⚠️ genhtml 解析失败，使用上次有效值: {self._last_valid_coverage['coverage_percentage']:.2f}%")
+            return {
+                **self._last_valid_coverage,
+                "status": "parse_error_using_cache",
+                "warning": f"genhtml 解析失败（{last_error}），使用上次有效值"
+            }
+        else:
+            return {"coverage_percentage": 0.0, "percentage": 0.0, "covered": 0, "total": 0, "status": "parse_error", "message": last_error or "无法解析 genhtml 输出"}
 
     def print_total_coverage(self, title: str = "总覆盖率") -> dict:
         """
@@ -542,6 +605,7 @@ class GlobalCoverageManager:
                 print(f"📊 首次创建累积覆盖率文件: {new_file_size / 1024:.1f} KB")
                 cmd = f"verilator_coverage -write {self.sum_dat_file} {new_dat_file}"
             
+            print(f"📌 [阶段] 正在合并 sum_gj.dat（verilator_coverage -write），请稍候...")
             print(f"\n{'='*60}")
             print(f"📊 [覆盖率合并] 执行命令")
             print(f"{'='*60}")
@@ -638,6 +702,7 @@ class GlobalCoverageManager:
         try:
             cmd = f"verilator_coverage -write-info coverage.info {self.sum_dat_file}"
             
+            print(f"📌 [阶段] 正在更新 coverage.info，请稍候...")
             print(f"\n{'='*60}")
             print(f"📊 [更新 coverage.info] 执行命令")
             print(f"{'='*60}")

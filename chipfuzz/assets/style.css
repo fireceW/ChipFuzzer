@@ -149,72 +149,157 @@ b{font-weight:700}
 .btn--sm{padding:8px 10px; border-radius:12px; font-size:13px}
 .btn[aria-disabled="true"]{opacity:.6; pointer-events:none}
 
-.hero{padding: 56px 0 22px}
-.hero__grid{
-  display:grid;
-  grid-template-columns: 1.1fr .9fr;
-  gap: 26px;
-  align-items:stretch;
+/* ----- Hero：加宽、大字、减少两侧空 ----- */
+.hero{
+  padding: 80px 0 56px;
+  text-align: center;
 }
-.kicker{
+.hero__inner{
+  max-width: min(960px, 92vw);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.hero__kicker{
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-weight: 700;
-  letter-spacing: .2px;
+  margin: 0 0 20px;
 }
 .hero__title{
-  margin: 10px 0 12px;
-  font-size: 52px;
-  line-height: 1.05;
-  letter-spacing: -1px;
+  font-size: clamp(52px, 14vw, 96px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 12px;
+  color: var(--text);
 }
-.hero__titleAccent{
-  display:block;
-  background: linear-gradient(135deg, rgba(124,92,255,1), rgba(78,230,181,1));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-top: 6px;
+.hero__tagline{
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0 0 24px;
+  letter-spacing: .02em;
 }
-.hero__subtitle{color: var(--muted); font-size:16px; max-width: 52ch}
-.hero__cta{display:flex; gap:10px; margin: 18px 0 18px; flex-wrap:wrap}
+.hero__desc{
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0 0 32px;
+  max-width: 52ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero__cta{
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 44px;
+}
+.hero__cta .btn{ padding: 14px 22px; font-size: 15px; }
+.hero__flow{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.hero__flow span:not(.hero__arrow){ opacity: .9; }
+.hero__arrow{
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted);
+  border-top: 2px solid var(--muted);
+  transform: rotate(45deg);
+  opacity: .6;
+}
+.hero__tech{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+[data-theme="light"] .hero__tech{border-top-color: rgba(15,23,42,.08)}
+.hero__tech-item{
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+[data-theme="light"] .hero__tech-item{background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.1)}
+.hero__tech-item:hover{
+  color: var(--text);
+  border-color: rgba(124,92,255,.25);
+  background: rgba(124,92,255,.06);
+}
 
+/* 保留：其他区块可能用到的 .stats / .stat */
 .stats{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 8px;
 }
 .stat{
   border: 1px solid var(--line);
   background: rgba(255,255,255,.03);
-  border-radius: 16px;
-  padding: 14px 14px;
+  border-radius: 18px;
+  padding: 16px 14px;
 }
-[data-theme="light"] .stat{background: rgba(15,23,42,.02)}
-.stat__num{font-weight: 900; font-size: 22px; letter-spacing:-.4px}
-.stat__label{color: var(--muted); font-weight: 650; font-size: 12px; margin-top: 6px}
+[data-theme="light"] .stat{background: rgba(15,23,42,.03)}
+.stat__num{font-weight: 900; font-size: 20px; color: var(--text)}
+.stat__label{color: var(--muted); font-weight: 600; font-size: 11px; margin-top: 6px; line-height: 1.45}
+.stat--accent{background: linear-gradient(160deg, rgba(124,92,255,.08), rgba(78,230,181,.05)); border-color: rgba(124,92,255,.18)}
+[data-theme="light"] .stat--accent{background: linear-gradient(160deg, rgba(91,75,255,.08), rgba(26,214,163,.06)); border-color: rgba(91,75,255,.2)}
 
 .panel{
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background:
-    radial-gradient(360px 160px at 20% 10%, rgba(124,92,255,.18), transparent 65%),
-    radial-gradient(360px 160px at 80% 10%, rgba(78,230,181,.14), transparent 65%),
+    radial-gradient(400px 180px at 15% 5%, rgba(124,92,255,.16), transparent 60%),
+    radial-gradient(380px 180px at 85% 5%, rgba(78,230,181,.12), transparent 60%),
     rgba(255,255,255,.03);
   box-shadow: var(--shadow);
   overflow:hidden;
+}
+.panel--hero{
+  border-color: rgba(124,92,255,.2);
+  box-shadow: 0 20px 50px rgba(0,0,0,.25), 0 0 0 1px rgba(124,92,255,.08);
 }
 [data-theme="light"] .panel{background:
   radial-gradient(360px 160px at 20% 10%, rgba(91,75,255,.12), transparent 65%),
   radial-gradient(360px 160px at 80% 10%, rgba(26,214,163,.10), transparent 65%),
   rgba(15,23,42,.02);
 }
+[data-theme="light"] .panel--hero{border-color: rgba(91,75,255,.25)}
 .panel__top{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding: 14px 14px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--line);
+  background: rgba(0,0,0,.15);
+}
+[data-theme="light"] .panel__top{background: rgba(15,23,42,.04)}
+.panel__title{
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .02em;
+  color: var(--text);
 }
 .panel__pill{
   font-family: var(--mono);
@@ -234,51 +319,74 @@ b{font-weight:700}
 .panel__dots span:nth-child(1){background: rgba(255,77,109,.65); border-color: rgba(255,77,109,.35)}
 .panel__dots span:nth-child(2){background: rgba(255,210,77,.55); border-color: rgba(255,210,77,.30)}
 .panel__dots span:nth-child(3){background: rgba(78,230,181,.55); border-color: rgba(78,230,181,.30)}
-.panel__body{padding: 14px}
+.panel__body{padding: 18px}
 
 .diagram{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
-.diagram__col{display:flex; flex-direction:column; gap: 12px}
+.diagram__col{display:flex; flex-direction:column; gap: 14px}
 .node{
   border-radius: 16px;
   border: 1px solid var(--line);
   background: rgba(255,255,255,.03);
-  padding: 12px 12px;
+  padding: 14px 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.node:hover{
+  border-color: rgba(124,92,255,.2);
+  box-shadow: 0 6px 20px rgba(0,0,0,.12);
 }
 [data-theme="light"] .node{background: rgba(15,23,42,.02)}
 .node--accent{
-  background: linear-gradient(135deg, rgba(124,92,255,.22), rgba(78,230,181,.12));
-  border-color: rgba(124,92,255,.28);
+  background: linear-gradient(145deg, rgba(124,92,255,.2), rgba(78,230,181,.1));
+  border-color: rgba(124,92,255,.3);
+}
+.node--accent:hover{
+  border-color: rgba(124,92,255,.45);
+  box-shadow: 0 8px 24px rgba(124,92,255,.12);
 }
 [data-theme="light"] .node--accent{
-  background: linear-gradient(135deg, rgba(91,75,255,.14), rgba(26,214,163,.10));
+  background: linear-gradient(145deg, rgba(91,75,255,.12), rgba(26,214,163,.08));
+  border-color: rgba(91,75,255,.25);
 }
-.node__title{font-weight:800}
-.node__desc{color:var(--muted); font-size:12px; margin-top:4px}
-.panel__foot{display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px}
+.node__title{font-weight:800; font-size:14px; color: var(--text)}
+.node__desc{color:var(--muted); font-size:11px; margin-top:6px; line-height:1.5}
+.panel__foot{display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px}
 .badge{
-  font-size:12px;
+  font-size:11px;
   font-weight:700;
   color: var(--muted);
   border:1px solid var(--line);
   background: rgba(255,255,255,.03);
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: 999px;
 }
 
 .section{padding: 46px 0}
+/* hero 与下方内容衔接：过渡线、统一层级、不抢主标题 */
+.section--after-hero{
+  padding-top: 44px;
+  padding-bottom: 48px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+[data-theme="light"] .section--after-hero{border-top-color: rgba(15,23,42,.08)}
+.section__head{margin-bottom: 20px}
+.section__head--compact{
+  margin-bottom: 22px;
+  padding-left: 14px;
+  border-left: 3px solid var(--primary);
+}
+.section__title{margin:0; font-size: 22px; font-weight: 700; letter-spacing:-.2px; color: var(--text)}
+.section__head--compact .section__title{font-size: 20px; font-weight: 700}
+.section__desc{margin: 6px 0 0; font-size: 14px; color: var(--muted); max-width: 60ch}
 .section--alt{
   background: rgba(255,255,255,.02);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 [data-theme="light"] .section--alt{background: rgba(15,23,42,.02)}
-.section__head{margin-bottom: 18px}
-.section__title{margin:0; font-size: 28px; letter-spacing:-.3px}
-.section__desc{margin: 8px 0 0; color: var(--muted); max-width: 70ch}
 
 .grid{display:grid; gap: 12px}
 .grid--3{grid-template-columns: repeat(3, 1fr)}
@@ -559,14 +667,13 @@ select.field__input option{
 [data-theme="light"] .recent__item:hover{background: rgba(124,92,255,.12)}
 
 @media (max-width: 980px){
-  .hero__grid{grid-template-columns: 1fr; }
+  .hero{padding: 56px 0 44px}
   .stats{grid-template-columns: 1fr; }
   .grid--3{grid-template-columns: 1fr; }
   .grid--2{grid-template-columns: 1fr; }
   .contact{grid-template-columns: 1fr; }
   .nav{display:none}
   .brand{min-width:auto}
-  .hero__title{font-size: 42px}
   .diagram{grid-template-columns: 1fr}
 }
 
@@ -602,4 +709,289 @@ select.field__input option{
 
 [data-theme="light"] .l2-module-item:hover {
   box-shadow: 0 4px 12px rgba(91,75,255,.12);
+}
+
+/* ============================
+   验证流程实时展示（3 区块）
+   ============================ */
+
+.workflow-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workflow-summary-card {
+  background: var(--card);
+  border-radius: var(--radius2);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 200px;
+}
+
+.workflow-summary-card .workflow-output {
+  flex: 1;
+  max-height: 400px;
+  min-height: 150px;
+}
+
+/* LLM 用例框：加高 + 不要紫色下拉框，内容直接全部显示 */
+.workflow-summary-card--llm {
+  min-height: 420px;
+}
+.workflow-summary-card--llm .workflow-output {
+  max-height: none !important;
+  min-height: 380px;
+  overflow-y: visible !important;
+  overflow-x: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-summary-card--llm .workflow-output::-webkit-scrollbar {
+  display: none;
+}
+.workflow-summary-card--llm .workflow-code-preview {
+  max-height: none !important;
+  overflow-y: visible !important;
+  overflow-x: auto;
+  min-height: 340px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-summary-card--llm .workflow-code-preview::-webkit-scrollbar {
+  display: none;
+}
+
+.workflow-summary-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workflow-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workflow-summary-icon {
+  font-size: 16px;
+}
+
+.workflow-summary-sub {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+@media (max-width: 1024px) {
+  .workflow-summary-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+/* 流程输出样式 - 优化版 */
+.workflow-output-container {
+  margin-top: 20px;
+}
+
+.workflow-output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.workflow-output-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.workflow-output-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 12px;
+}
+
+/* 每个步骤内部的小型日志面板 */
+.step-log {
+  display: none;
+  margin-top: 8px;
+}
+
+.workflow-step-card.is-open .step-log {
+  display: block;
+}
+
+.step-log .workflow-output {
+  max-height: 160px;
+  padding: 8px 10px;
+}
+
+.workflow-output {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--card);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius2);
+  padding: 16px;
+  max-height: 250px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.workflow-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.workflow-output::-webkit-scrollbar-track {
+  background: var(--bg2);
+  border-radius: 4px;
+}
+
+.workflow-output::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+  border: 2px solid var(--bg2);
+}
+
+.workflow-output::-webkit-scrollbar-thumb:hover {
+  background: var(--primary2);
+}
+
+/* 输出项样式优化 */
+.workflow-output-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border-left: 3px solid currentColor;
+  transition: all 0.2s ease;
+}
+
+.workflow-output-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(2px);
+}
+
+/* 覆盖率分析摘要：四合一框 */
+.workflow-cov-summary-box {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.workflow-cov-summary-row {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.workflow-cov-summary-row:last-child {
+  margin-bottom: 0;
+}
+.workflow-cov-summary-label {
+  opacity: 0.85;
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+/* 验证流程：一个 case 一块（编译命令、编译是否成功、仿真命令、仿真是否成功） */
+.workflow-case-block .workflow-case-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.workflow-case-row {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.workflow-case-label {
+  flex-shrink: 0;
+  opacity: 0.85;
+  font-weight: 500;
+  min-width: 96px;
+}
+.workflow-case-value {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.workflow-case-value.workflow-case-ok {
+  color: var(--success, #4ade80);
+}
+.workflow-case-value.workflow-case-fail {
+  color: var(--danger, #f87171);
+}
+
+.workflow-output-timestamp {
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.workflow-output-text {
+  color: var(--text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.workflow-code-preview {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  overflow-x: auto;
+  white-space: pre;
+  word-break: normal;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.workflow-code-preview::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.workflow-code-preview::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.workflow-code-preview::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+/* 已在上面 .workflow-summary-card--llm 区块统一设置 */
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .workflow-steps-container {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
 }

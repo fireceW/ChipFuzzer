@@ -108,13 +108,17 @@
   const compileSuccessRateEl = document.getElementById("compileSuccessRate");
   const emulatorSuccessCountEl = document.getElementById("emulatorSuccessCount");
   const emulatorSuccessRateEl = document.getElementById("emulatorSuccessRate");
+  const coverageImprovedCountEl = document.getElementById("coverageImprovedCount");
+  const coverageImprovedRateEl = document.getElementById("coverageImprovedRate");
   
   // 调试：检查元素是否存在
   console.log('[统计] DOM元素检查:', {
     llmGenerationCountEl: !!llmGenerationCountEl,
     compileSuccessRateEl: !!compileSuccessRateEl,
     emulatorSuccessCountEl: !!emulatorSuccessCountEl,
-    emulatorSuccessRateEl: !!emulatorSuccessRateEl
+    emulatorSuccessRateEl: !!emulatorSuccessRateEl,
+    coverageImprovedCountEl: !!coverageImprovedCountEl,
+    coverageImprovedRateEl: !!coverageImprovedRateEl
   });
 
   // 图表实例
@@ -208,11 +212,13 @@
     }
 
     // 匹配: "当前参考案例数: X" 或 "当前参考案例数：X"（支持中英文冒号）
-    // 这是最权威的成功案例计数来源
+    // 与后端 good_seeds 数量一致，同时更新「运行模块参考案例」和「成功覆盖 case 数」
     const casesMatch = line.match(/当前参考案例数[：:]\s*(\d+)/);
-    if (casesMatch && successCasesEl) {
+    if (casesMatch) {
       const count = parseInt(casesMatch[1], 10);
-      successCasesEl.textContent = count;
+      if (successCasesEl) successCasesEl.textContent = count;
+      if (coverageImprovedCountEl) coverageImprovedCountEl.textContent = count;
+      // 若有 LLM 生成次数可算比例，此处不重复拉接口，比例仍由统计轮询更新
     }
 
     // 只有在收集状态下才匹配覆盖的代码行
@@ -320,7 +326,21 @@
       // 处理错误状态
       if (data.status === "error" || data.status === "parse_error") {
         console.warn("覆盖率获取错误:", data.message || data.status);
+        // 如果是解析错误但没有历史数据，显示错误提示
+        if (data.status === "parse_error" && !data.coverage_percentage) {
+          if (totalCoverageEl) totalCoverageEl.textContent = "解析失败";
+          if (coverageDeltaEl) {
+            coverageDeltaEl.textContent = "-";
+            coverageDeltaEl.style.color = "#888";
+          }
+        }
         return;
+      }
+      
+      // 处理解析错误但使用缓存的情况
+      if (data.status === "parse_error_using_cache") {
+        console.warn("覆盖率解析失败，使用缓存数据:", data.warning);
+        // 继续使用缓存的数据更新显示
       }
       
       if (data.coverage_percentage !== undefined) {
@@ -506,6 +526,23 @@
             console.log('[统计] 模拟器执行成功率: 无数据');
           }
         }
+        if (coverageImprovedCountEl) {
+          const count = summary.total_coverage_improved ?? 0;
+          coverageImprovedCountEl.textContent = count;
+          console.log(`[统计] 成功覆盖 case 数: ${count}`);
+        }
+        if (coverageImprovedRateEl) {
+          const rate = summary.coverage_improved_rate ?? 0;
+          if (rate > 0 || (summary.total_llm_generations || 0) > 0) {
+            coverageImprovedRateEl.textContent = `${(rate || 0).toFixed(2)}%`;
+            coverageImprovedRateEl.style.color = rate >= 80 ? "#4ade80" : rate >= 50 ? "#fbbf24" : "#f87171";
+            console.log(`[统计] 占 LLM 生成比例: ${(rate || 0).toFixed(2)}%`);
+          } else {
+            coverageImprovedRateEl.textContent = "-";
+            coverageImprovedRateEl.style.color = "#888";
+            console.log('[统计] 占 LLM 生成比例: 无数据');
+          }
+        }
 
         // 更新统计图表
         if (data.modules && data.modules.length > 0) {
@@ -523,8 +560,8 @@
           initEmptyChart("coverageChart", "line");
         }
       } else if (data.status === "no_data") {
-        console.log('[统计] 暂无统计数据');
-        // 显示"暂无数据"提示
+        console.log('[统计] 暂无统计数据（当前任务尚未写入或未匹配），保留日志中的实时值');
+        // 仅更新无“日志实时来源”的指标，不覆盖「运行模块参考案例」「成功覆盖 case 数」「占 LLM 生成比例」（由日志「当前参考案例数」等更新）
         if (llmGenerationCountEl) llmGenerationCountEl.textContent = "0";
         if (compileSuccessRateEl) {
           compileSuccessRateEl.textContent = "-";
@@ -535,6 +572,7 @@
           emulatorSuccessRateEl.textContent = "-";
           emulatorSuccessRateEl.style.color = "#888";
         }
+        // 不覆盖 coverageImprovedCountEl / successCasesEl / coverageImprovedRateEl，保留日志「当前参考案例数」等已显示的值
         // 初始化空图表
         if (!statisticsChart) initEmptyChart("statisticsChart", "bar");
         if (!coverageChart) initEmptyChart("coverageChart", "line");
@@ -740,7 +778,7 @@
     }
   };
 
-  // 定期获取统计数据（每 30 秒）
+  // 定期获取统计数据（每 10 秒，便于“成功覆盖 case 数”等及时更新）
   let statisticsTimer = null;
   const startStatisticsPolling = () => {
     if (statisticsTimer) clearInterval(statisticsTimer);
@@ -750,11 +788,11 @@
     initEmptyChart("coverageChart", "line");
     // 立即获取一次数据
     fetchStatistics();
-    // 每30秒获取一次
+    // 每10秒获取一次（原30秒，缩短以便成功覆盖 case 数及时更新）
     statisticsTimer = setInterval(() => {
       console.log('[统计] 定时获取统计数据...');
       fetchStatistics();
-    }, 30000);
+    }, 10000);
   };
 
   const stopStatisticsPolling = () => {
@@ -763,6 +801,11 @@
       statisticsTimer = null;
     }
   };
+
+  // 验证流程里出现「覆盖成功」时立即刷新统计，使「成功覆盖 case 数」及时更新
+  window.addEventListener('chipfuzz-refresh-statistics', () => {
+    if (typeof fetchStatistics === 'function') fetchStatistics();
+  });
 
   // 获取总参考案例数（从 GJ_Success_Seed 目录统计）
   // 只有在已连接任务时才获取
@@ -940,9 +983,9 @@
         module: document.getElementById("paramModule")?.value || "Bku",
         model: document.getElementById("paramModel")?.value || "qwen3:235b",
         mode: document.getElementById("paramMode")?.value || "continue",
-        max_iterations: parseInt(document.getElementById("paramMaxIterations")?.value) || 20,
-        num: parseInt(document.getElementById("paramNum")?.value) || 1,
-        auto_switch: document.getElementById("paramAutoSwitch")?.checked || false,
+        max_iterations: parseInt(document.getElementById("paramMaxIterations")?.value) || 13,
+        num: parseInt(document.getElementById("paramNum")?.value) || 100,
+        auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true, // 默认true（checkbox默认checked）
         use_spec: document.getElementById("paramUseSpec")?.checked || false,
         run_existing_seeds: document.getElementById("paramRunExistingSeeds")?.checked || false,
         // 使用默认路径，不再从前端获取

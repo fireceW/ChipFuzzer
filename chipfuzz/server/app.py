@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -94,9 +94,9 @@ class StartRunReq(BaseModel):
     # global: 用于累积全局覆盖率
     global_annotated_dir: str = "/root/XiangShan/logs_global/annotated"
     mode: str = "continue"  # continue 或 fresh
-    num: int = 0  # 模块索引或自动模式下的模块数量
-    max_iterations: int = 20  # 每模块最大尝试次数
-    auto_switch: bool = False  # 是否自动切换模块
+    num: int = 100  # 模块索引或自动模式下的模块数量
+    max_iterations: int = 13  # 每模块最大尝试次数
+    auto_switch: bool = True  # 是否自动切换模块（默认开启）
     use_spec: bool = False  # 是否使用 SPEC 文件分析
     run_existing_seeds: bool = False  # 是否运行已有成功用例
 
@@ -138,6 +138,135 @@ def list_runs() -> dict:
             if p.is_dir():
                 runs.append({"runId": p.name})
     return {"runs": runs}
+
+
+@app.get("/api/recent-assembly-codes")
+def get_recent_assembly_codes(limit: int = Query(10, ge=1, le=50)) -> dict:
+    """
+    获取最近生成的汇编代码片段（关键部分）
+    返回最近 N 个 .S 文件的关键代码（前5行+后5行）
+    同时扫描 testcase/ 和 all_seed/ 两个目录
+    """
+    try:
+        # 扫描两个目录
+        search_dirs = [
+            Path("/root/XiangShan/testcase"),
+            Path("/root/XiangShan/all_seed")
+        ]
+        
+        # 获取所有 .S 文件，按修改时间排序
+        asm_files = []
+        for testcase_dir in search_dirs:
+            if not testcase_dir.exists():
+                continue
+            for f in testcase_dir.glob("*.S"):
+                try:
+                    asm_files.append({
+                        "path": str(f),
+                        "name": f.name,
+                        "mtime": f.stat().st_mtime
+                    })
+                except Exception as e:
+                    print(f"⚠️ 读取文件信息失败 {f}: {e}")
+                    continue
+        
+        if not asm_files:
+            return {"codes": [], "error": "未找到 .S 文件"}
+        
+        # 按修改时间倒序排列，取最近 N 个
+        asm_files.sort(key=lambda x: x["mtime"], reverse=True)
+        asm_files = asm_files[:limit]
+        
+        result = []
+        for item in asm_files:
+            try:
+                with open(item["path"], 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read().strip()
+                
+                if not content:
+                    continue
+                
+                # 提取关键代码（前10行+后10行，增加信息量）
+                lines = [l for l in content.split('\n') if l.strip()]
+                if len(lines) <= 20:
+                    key_code = content
+                else:
+                    head = '\n'.join(lines[:10])
+                    tail = '\n'.join(lines[-10:])
+                    key_code = f"{head}\n.....\n{tail}"
+                
+                result.append({
+                    "name": item["name"],
+                    "path": item["path"],
+                    "key_code": key_code,
+                    "mtime": item["mtime"]
+                })
+            except Exception as e:
+                print(f"⚠️ 读取文件内容失败 {item['path']}: {e}")
+                continue
+        
+        return {"codes": result, "count": len(result)}
+    except Exception as e:
+        import traceback
+        error_msg = f"获取汇编代码失败: {str(e)}\n{traceback.format_exc()}"
+        print(f"❌ {error_msg}")
+        return {"codes": [], "error": error_msg}
+
+
+@app.get("/api/files/read")
+def read_file(path: str = Query(..., description="文件路径")) -> dict:
+    """
+    安全读取文件内容（仅允许读取指定目录下的文件）
+    允许的目录：
+    - /root/XiangShan/testcase/  (汇编文件)
+    - /root/ChipFuzzer_cursor/LLMoutput/  (LLM 输出文件)
+    """
+    try:
+        file_path = Path(path).resolve()
+        
+        # 安全检查：只允许读取指定目录
+        allowed_dirs = [
+            Path("/root/XiangShan/testcase").resolve(),
+            Path("/root/XiangShan/all_seed").resolve(),  # 添加 all_seed 目录
+            Path("/root/ChipFuzzer_cursor/LLMoutput").resolve(),
+            Path("/root/ChipFuzzer/LLMoutput").resolve(),  # 兼容旧路径
+        ]
+        
+        is_allowed = False
+        file_path_str = str(file_path)
+        for allowed_dir in allowed_dirs:
+            allowed_dir_str = str(allowed_dir)
+            # 确保路径以目录路径开头（后面跟 / 或者是完全匹配）
+            if file_path_str == allowed_dir_str or file_path_str.startswith(allowed_dir_str + '/'):
+                is_allowed = True
+                break
+        
+        if not is_allowed:
+            raise HTTPException(status_code=403, detail=f"不允许读取该路径: {path}")
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"文件不存在: {path}")
+        
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail=f"不是文件: {path}")
+        
+        # 限制文件大小（最大 1MB）
+        if file_path.stat().st_size > 1024 * 1024:
+            raise HTTPException(status_code=400, detail="文件过大（超过 1MB）")
+        
+        # 读取文件内容
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        return {
+            "path": str(file_path),
+            "content": content,
+            "size": len(content)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
 
 @app.post("/api/runs/start")
 def start_run(req: StartRunReq) -> dict:
@@ -350,20 +479,32 @@ def run_coverage(run_id: str) -> dict:
                 "total_lines": total,
                 "sum_dat_mtime": current_mtime,
             }
+            # 更新缓存（只有成功解析时才更新）
+            coverage_cache["data"] = data
+            coverage_cache["mtime"] = current_mtime
+            return data
         else:
-            # 如果解析失败，返回默认值
-            data = {
-                "coverage_percentage": 0.0,
-                "total_covered_lines": 0,
-                "total_lines": 0,
-                "status": "parse_error",
-            }
-        
-        # 更新缓存
-        coverage_cache["data"] = data
-        coverage_cache["mtime"] = current_mtime
-        
-        return data
+            # 如果解析失败，检查是否有缓存数据
+            if coverage_cache["data"] and coverage_cache["data"].get("coverage_percentage", 0) > 0:
+                # 有有效缓存，返回缓存数据并记录警告
+                print(f"⚠️ genhtml 输出解析失败，使用缓存数据: {coverage_cache['data']['coverage_percentage']:.2f}%")
+                print(f"   genhtml 输出（前500字符）: {output[:500]}")
+                return {
+                    **coverage_cache["data"],
+                    "status": "parse_error_using_cache",
+                    "warning": "genhtml 输出解析失败，使用上次有效值"
+                }
+            else:
+                # 没有有效缓存，返回错误状态（但不返回0，避免误导）
+                print(f"⚠️ genhtml 输出解析失败，且无有效缓存数据")
+                print(f"   genhtml 输出（前500字符）: {output[:500]}")
+                return {
+                    "coverage_percentage": 0.0,
+                    "total_covered_lines": 0,
+                    "total_lines": 0,
+                    "status": "parse_error",
+                    "message": "genhtml 输出解析失败，且无历史数据"
+                }
         
     except subprocess.TimeoutExpired:
         # genhtml 执行超时，但如果有缓存就返回缓存的数据
@@ -714,47 +855,84 @@ def run_logs(run_id: str, cursor: Optional[str] = None) -> JSONResponse:
 def get_statistics(run_id: str) -> dict:
     """
     获取运行统计信息
-    优先根据 run_id 匹配统计文件，如果找不到则返回最新的统计文件
+    优先读取 statistics_<run_id>.json（当前任务专用），若无则按 run_id 内容匹配，再回退到最新文件
     """
     import json
-    import glob
-    
-    # 查找所有统计文件
-    stats_files = sorted(STATS_DIR.glob("statistics_*.json"), reverse=True)
-    
-    if not stats_files:
-        return {
-            "status": "no_data",
-            "message": "暂无统计数据",
-            "debug": {
-                "stats_dir": str(STATS_DIR),
-                "files_found": 0
-            }
-        }
+    import logging
     
     try:
-        # 优先查找匹配 run_id 的统计文件
+        # 1) 优先直接按 run_id 命名的文件读取（后端每次保存都会写这份，确保“成功覆盖 case 数”等与当前任务一致）
+        safe_run_id = run_id.replace("\\", "_").replace("/", "_").replace("..", "_").strip()
+        run_id_file = STATS_DIR / f"statistics_{safe_run_id}.json"
+        if run_id_file.exists():
+            with open(run_id_file, 'r', encoding='utf-8') as f:
+                stats_data = json.load(f)
+            summary = stats_data.get("summary", {})
+            total_llm = summary.get("total_llm_generations", 0)
+            total_emulator_success = summary.get("total_emulator_success", 0)
+            total_coverage_improved = summary.get("total_coverage_improved", 0)
+            compile_success_rate = (total_emulator_success / total_llm * 100) if total_llm > 0 else 0.0
+            emulator_success_rate = compile_success_rate
+            coverage_improved_rate = (total_coverage_improved / total_llm * 100) if total_llm > 0 else 0.0
+            all_coverage_data = []
+            for module_data in stats_data.get("modules", []):
+                module_stats = module_data.get("statistics", {}) or {}
+                all_coverage_data.extend(module_stats.get("coverage_data", []))
+            all_coverage_data.sort(key=lambda x: x.get("timestamp", 0))
+            return {
+                "status": "success",
+                "summary": {
+                    "total_llm_generations": total_llm,
+                    "total_emulator_success": total_emulator_success,
+                    "total_coverage_improved": total_coverage_improved,
+                    "coverage_improved_rate": round(coverage_improved_rate, 2),
+                    "compile_success_rate": round(compile_success_rate, 2),
+                    "emulator_success_rate": round(emulator_success_rate, 2),
+                },
+                "modules": [
+                    {
+                        "module_name": m.get("module_name", "unknown"),
+                        "llm_count": (m.get("statistics") or {}).get("llm_generation_count", 0),
+                        "emulator_success": (m.get("statistics") or {}).get("emulator_success_count", 0),
+                    }
+                    for m in stats_data.get("modules", [])
+                ],
+                "coverage_data": all_coverage_data[-100:],
+                "debug": {"stats_file": str(run_id_file), "source": "run_id_file"},
+            }
+        
+        # 2) 回退：按内容中的 run_id 匹配
+        stats_files = sorted(STATS_DIR.glob("statistics_*.json"), reverse=True)
+        if not stats_files:
+            return {
+                "status": "no_data",
+                "message": "暂无统计数据",
+                "debug": {"stats_dir": str(STATS_DIR), "files_found": 0},
+            }
+        
         matched_file = None
         for stats_file in stats_files:
+            if stats_file.name == run_id_file.name:
+                continue
             try:
                 with open(stats_file, 'r', encoding='utf-8') as f:
                     file_data = json.load(f)
-                    file_run_id = file_data.get("run_id", "")
-                    if file_run_id == run_id:
+                    if file_data.get("run_id", "") == run_id:
                         matched_file = stats_file
                         break
             except Exception:
-                # 如果读取失败，跳过这个文件
                 continue
         
-        # 如果没有找到匹配的文件，使用最新的统计文件（向后兼容）
+        # 未找到当前 run_id 的统计文件时，不退回“最新文件”（避免用其他任务的 0 覆盖本任务从日志得到的值）
         if matched_file is None:
-            matched_file = stats_files[0]
-            import logging
-            logging.info(f"[统计API] 未找到 run_id={run_id} 的统计文件，使用最新文件: {matched_file}")
-        else:
-            import logging
-            logging.info(f"[统计API] 找到匹配的统计文件: {matched_file}, run_id={run_id}")
+            logging.info(f"[统计API] 未找到 run_id={run_id} 的统计文件，返回 no_data")
+            return {
+                "status": "no_data",
+                "message": "当前任务暂无统计数据（可能尚未写入），页面将保留日志中的实时数据",
+                "debug": {"stats_dir": str(STATS_DIR), "run_id": run_id, "files_checked": len(stats_files)},
+            }
+        
+        logging.info(f"[统计API] 找到匹配: {matched_file}, run_id={run_id}")
         
         # 读取统计文件
         with open(matched_file, 'r', encoding='utf-8') as f:
@@ -764,9 +942,10 @@ def get_statistics(run_id: str) -> dict:
         summary = stats_data.get("summary", {})
         total_llm = summary.get("total_llm_generations", 0)
         total_emulator_success = summary.get("total_emulator_success", 0)
+        total_coverage_improved = summary.get("total_coverage_improved", 0)
         
         # 调试信息：记录读取的数据
-        logging.info(f"[统计API] 读取数据: total_llm={total_llm}, total_emulator_success={total_emulator_success}")
+        logging.info(f"[统计API] 读取数据: total_llm={total_llm}, total_emulator_success={total_emulator_success}, total_coverage_improved={total_coverage_improved}")
         
         # 计算编译成功率（需要从日志中统计，这里先返回模拟器成功率）
         # 编译成功率 = 模拟器成功执行次数 / LLM 生成次数
@@ -776,6 +955,11 @@ def get_statistics(run_id: str) -> dict:
         
         # 模拟器执行成功率（假设所有成功编译的都会执行模拟器）
         emulator_success_rate = compile_success_rate  # 暂时相同，后续可以从日志中更精确统计
+        
+        # 成功覆盖的 case 占 LLM 生成次数的比例
+        coverage_improved_rate = 0.0
+        if total_llm > 0:
+            coverage_improved_rate = (total_coverage_improved / total_llm) * 100
         
         # 获取覆盖率数据
         all_coverage_data = []
@@ -793,6 +977,8 @@ def get_statistics(run_id: str) -> dict:
             "summary": {
                 "total_llm_generations": total_llm,
                 "total_emulator_success": total_emulator_success,
+                "total_coverage_improved": total_coverage_improved,
+                "coverage_improved_rate": round(coverage_improved_rate, 2),
                 "compile_success_rate": round(compile_success_rate, 2),
                 "emulator_success_rate": round(emulator_success_rate, 2),
             },
