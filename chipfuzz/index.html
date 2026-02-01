@@ -30,10 +30,7 @@
           </div>
         </div>
 
-        <nav class="nav" aria-label="主导航">
-          <a class="nav__link" href="#monitor">运行监控</a>
-          <a class="nav__link" href="#params">参数配置</a>
-        </nav>
+        <nav class="nav" aria-label="主导航"></nav>
 
         <div class="header__actions">
           <button class="btn btn--ghost" id="themeToggle" type="button" aria-label="切换主题">
@@ -48,45 +45,20 @@
     <main id="main">
       <section class="hero">
         <div class="container hero__shell">
-          <div class="hero-card">
+          <div class="hero-card hero-card--compact">
             <div class="hero-copy">
               <p class="hero__kicker">硬件验证 · LLM 驱动</p>
               <h1 class="hero__title">ChipFuzzer</h1>
-              <p class="hero__tagline">从生成到覆盖率闭环的硬件验证平台</p>
+              <p class="hero__tagline">覆盖引导的 Fuzzing 闭环</p>
               <p class="hero__desc">
-                LLM 生成汇编用例 → 编译与仿真 → 覆盖率统计与成功用例沉淀，全流程可观测、可复现。
+                种子程序经变异得到输入程序，在 ISA 模拟器与 DUT 上执行并比对轨迹；发现不一致即记录缺陷，否则根据覆盖率决定回馈或丢弃。
               </p>
               <ul class="hero__bullets" aria-label="核心能力">
-                <li>LLM 生成 / 修复 / 分析汇编，自动驱动测试</li>
-                <li>编译与硬件仿真一体化，减少人工成本</li>
-                <li>覆盖率与成功用例保存复现，持续提升有效性</li>
+                <li>Seed Programs → Mutation（LLM 辅助）→ Input Program</li>
+                <li>ISA Simulator 与 DUT 双路执行，Execution Trace 比对</li>
+                <li>Mismatch? → Detected Bug；Increased Coverage? → 回馈或 Delete</li>
               </ul>
-              <div class="hero__cta">
-                <a class="btn btn--primary" href="#monitor">运行监控</a>
-                <a class="btn btn--ghost" href="#params">参数配置</a>
-              </div>
-            </div>
-            <div class="hero-visual">
-              <div class="hero-visual__header">
-                <span>验证闭环</span>
-                <span class="hero-visual__pill">实时</span>
-              </div>
-              <div class="hero-flow">
-                <div class="hero-flow__node hero-flow__node--primary">
-                  <strong>LLM 生成</strong>
-                  <span>未覆盖区域驱动</span>
-                </div>
-                <span class="hero-flow__arrow" aria-hidden="true"></span>
-                <div class="hero-flow__node">
-                  <strong>编译 · 仿真</strong>
-                  <span>命令与日志回写</span>
-                </div>
-                <span class="hero-flow__arrow" aria-hidden="true"></span>
-                <div class="hero-flow__node hero-flow__node--highlight">
-                  <strong>覆盖提升</strong>
-                  <span>统计与成功用例</span>
-                </div>
-              </div>
+              <div class="hero__cta"></div>
             </div>
           </div>
         </div>
@@ -188,6 +160,10 @@
                 <label class="field" style="display: flex; align-items: center; gap: 8px;">
                   <input type="checkbox" id="paramRunExistingSeeds" style="width: auto;" />
                   <span class="field__label" style="margin: 0;">--run_existing_seeds（运行已有成功用例）</span>
+                </label>
+                <label class="field" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="paramLlmReport" style="width: auto;" />
+                  <span class="field__label" style="margin: 0;">--llm-report（使用 LLM 生成用例报告，默认不写）</span>
                 </label>
               </div>
             </div>
@@ -349,6 +325,7 @@
                   <div class="metric__label">L2 总体覆盖率</div>
                   <div class="metric__value" id="l2TotalCoverage">-</div>
                 </div>
+                <!-- 暂时隐藏，看效果
                 <div class="metric">
                   <div class="metric__label">已覆盖行数</div>
                   <div class="metric__value metric__value--sm" id="l2CoveredLines">0</div>
@@ -357,6 +334,7 @@
                   <div class="metric__label">未覆盖行数</div>
                   <div class="metric__value metric__value--sm" id="l2UncoveredLines">0</div>
                 </div>
+                -->
               </div>
 
               <div class="l2-modules" id="l2ModulesList">

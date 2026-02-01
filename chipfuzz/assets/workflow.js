@@ -443,7 +443,7 @@
           }
         }
       }
-    }, 200); // 每 200ms 检查一次
+    }, 400); // 每 400ms 检查一次，降低长时间运行时的 CPU 占用
 
     // 同时保留 MutationObserver 作为备用
     const observer = new MutationObserver(() => {

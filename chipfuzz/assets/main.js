@@ -174,11 +174,17 @@
   const setLogHint = (t) => {
     if (logHintEl) logHintEl.textContent = t;
   };
+  // 限制实时日志行数，避免长时间运行后 DOM 过大导致卡死
+  const LOG_MAX_LINES = 3000;
+  const LOG_TRIM_TO = 2400;
   const appendLog = (line) => {
     if (!logOutEl) return;
     logOutEl.textContent += (logOutEl.textContent ? "\n" : "") + line;
+    const lines = logOutEl.textContent.split("\n");
+    if (lines.length > LOG_MAX_LINES) {
+      logOutEl.textContent = lines.slice(-LOG_TRIM_TO).join("\n");
+    }
     logOutEl.scrollTop = logOutEl.scrollHeight;
-    
     // 解析覆盖率数据
     parseCoverageData(line);
   };
@@ -251,11 +257,8 @@
           item.textContent = codeLine;
           item.title = `第 ${lineNum} 行: ${codeLine}`;
           recentCoverageEl.insertBefore(item, recentCoverageEl.firstChild);
-          
-          // 限制数量
-          const items = recentCoverageEl.querySelectorAll('.recent__item');
-          if (items.length > 30) {
-            items[items.length - 1].remove();
+          if (recentCoverageEl.children.length > 30) {
+            recentCoverageEl.lastElementChild?.remove();
           }
           
           // 收集够了就停止
@@ -422,8 +425,8 @@
         datasets: [{
           label: isBar ? "等待数据" : "覆盖率 (%)",
           data: isBar ? [0] : [],
-          backgroundColor: isBar ? 'rgba(34, 211, 238, 0.2)' : 'rgba(52, 211, 153, 0.15)',
-          borderColor: isBar ? 'rgba(34, 211, 238, 0.6)' : 'rgba(52, 211, 153, 0.6)',
+          backgroundColor: isBar ? 'rgba(45, 212, 191, 0.35)' : 'rgba(45, 212, 191, 0.2)',
+          borderColor: isBar ? 'rgba(45, 212, 191, 0.9)' : 'rgba(45, 212, 191, 0.9)',
           borderWidth: 1
         }]
       },
@@ -433,22 +436,22 @@
         scales: isBar ? {
           y: {
             beginAtZero: true,
-            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
+            grid: { color: 'rgba(0, 0, 0, 0.08)' },
+            ticks: { color: '#475569', font: { size: 13, weight: '500' } }
           },
           x: {
-            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
+            grid: { color: 'rgba(0, 0, 0, 0.08)' },
+            ticks: { color: '#475569', font: { size: 13, weight: '500' } }
           }
         } : {
           y: {
             beginAtZero: false,
-            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
+            grid: { color: 'rgba(0, 0, 0, 0.08)' },
+            ticks: { color: '#475569', font: { size: 13, weight: '500' } }
           },
           x: {
-            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
+            grid: { color: 'rgba(0, 0, 0, 0.08)' },
+            ticks: { color: '#475569', font: { size: 13, weight: '500' } }
           }
         },
         plugins: {
@@ -456,9 +459,9 @@
             display: true,
             position: 'top',
             labels: {
-              color: 'rgba(230, 237, 243, 0.95)',
-              font: { size: 10 },
-              padding: 8,
+              color: '#334155',
+              font: { size: 13, weight: '600' },
+              padding: 10,
               usePointStyle: true
             }
           }
@@ -620,15 +623,15 @@
             {
               label: 'LLM 生成次数',
               data: llmCounts,
-              backgroundColor: 'rgba(34, 211, 238, 0.5)',
-              borderColor: 'rgba(34, 211, 238, 0.9)',
+              backgroundColor: 'rgba(45, 212, 191, 0.5)',
+              borderColor: 'rgba(45, 212, 191, 0.95)',
               borderWidth: 1
             },
             {
               label: '模拟器成功执行次数',
               data: emulatorCounts,
-              backgroundColor: 'rgba(52, 211, 153, 0.5)',
-              borderColor: 'rgba(52, 211, 153, 0.9)',
+              backgroundColor: 'rgba(94, 234, 212, 0.45)',
+              borderColor: 'rgba(94, 234, 212, 0.9)',
               borderWidth: 1
             }
           ]
@@ -639,19 +642,14 @@
           scales: {
             y: {
               beginAtZero: true,
-              grid: {
-                color: 'rgba(255, 255, 255, 0.06)'
-              },
-              ticks: {
-                color: 'rgba(180, 188, 200, 0.9)',
-                font: { size: 10 }
-              }
+              grid: { color: 'rgba(0, 0, 0, 0.08)' },
+              ticks: { color: '#475569', font: { size: 13, weight: '500' } }
             },
             x: {
-              grid: { color: 'rgba(255, 255, 255, 0.06)' },
+              grid: { color: 'rgba(0, 0, 0, 0.08)' },
               ticks: {
-                color: 'rgba(180, 188, 200, 0.9)',
-                font: { size: 10 },
+                color: '#475569',
+                font: { size: 13, weight: '500' },
                 maxRotation: 45,
                 minRotation: 0
               }
@@ -662,9 +660,9 @@
               display: true,
               position: 'top',
               labels: {
-                color: 'rgba(230, 237, 243, 0.95)',
-                font: { size: 10 },
-                padding: 8,
+                color: '#334155',
+                font: { size: 13, weight: '600' },
+                padding: 10,
                 usePointStyle: true
               }
             }
@@ -687,14 +685,20 @@
       return;
     }
 
-    // 按时间排序
+    // 按时间排序；若出现“先升后降”，把峰点当作异常值剔除
     const sortedData = [...coverageData].sort((a, b) => a.timestamp - b.timestamp);
-    
-    const timestamps = sortedData.map(d => {
+    const toRemove = new Set();
+    for (let i = 0; i < sortedData.length - 1; i++) {
+      const pct = Number(sortedData[i].coverage_percentage) || 0;
+      const nextPct = Number(sortedData[i + 1].coverage_percentage) || 0;
+      if (pct > nextPct) toRemove.add(i); // 峰点（升后降的“升”）标为异常
+    }
+    const cleaned = sortedData.filter((_, i) => !toRemove.has(i));
+    const timestamps = cleaned.map(d => {
       const date = new Date(d.timestamp * 1000);
       return date.toLocaleTimeString();
     });
-    const coveragePercentages = sortedData.map(d => d.coverage_percentage || 0);
+    const coveragePercentages = cleaned.map(d => Number(d.coverage_percentage) || 0);
 
     if (coverageChart) {
       coverageChart.data.labels = timestamps;
@@ -708,8 +712,8 @@
           datasets: [{
             label: '覆盖率 (%)',
             data: coveragePercentages,
-            borderColor: 'rgba(52, 211, 153, 0.9)',
-            backgroundColor: 'rgba(52, 211, 153, 0.12)',
+            borderColor: 'rgba(45, 212, 191, 0.95)',
+            backgroundColor: 'rgba(45, 212, 191, 0.18)',
             borderWidth: 2,
             fill: true,
             tension: 0.4
@@ -721,15 +725,15 @@
           scales: {
             y: {
               beginAtZero: false,
-              grid: { color: 'rgba(255, 255, 255, 0.06)' },
-              ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } },
+              grid: { color: 'rgba(0, 0, 0, 0.08)' },
+              ticks: { color: '#475569', font: { size: 13, weight: '500' } },
               title: { display: false }
             },
             x: {
-              grid: { color: 'rgba(255, 255, 255, 0.06)' },
+              grid: { color: 'rgba(0, 0, 0, 0.08)' },
               ticks: {
-                color: 'rgba(180, 188, 200, 0.9)',
-                font: { size: 10 },
+                color: '#475569',
+                font: { size: 13, weight: '500' },
                 maxRotation: 45,
                 minRotation: 0
               },
@@ -741,9 +745,9 @@
               display: true,
               position: 'top',
               labels: {
-                color: 'rgba(230, 237, 243, 0.95)',
-                font: { size: 10 },
-                padding: 8,
+                color: '#334155',
+                font: { size: 13, weight: '600' },
+                padding: 10,
                 usePointStyle: true
               }
             }
@@ -828,6 +832,13 @@
     return { base, token, runId };
   };
 
+  const stopL2Polling = () => {
+    if (l2Timer) {
+      clearInterval(l2Timer);
+      l2Timer = null;
+    }
+  };
+
   const disconnect = () => {
     if (es) {
       es.close();
@@ -840,16 +851,27 @@
     stopCoveragePolling();
     stopSuccessSeedsPolling();
     stopStatisticsPolling();
+    stopL2Polling();
     setConnState("未连接");
     setLogHint("等待连接…");
   };
 
   const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
 
+  const FETCH_TIMEOUT_MS = 30000;
   const fetchJson = async (url, token) => {
-    const res = await fetch(url, { headers: { ...authHeaders(token) } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { headers: { ...authHeaders(token) }, signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("请求超时");
+      throw e;
+    } finally {
+      clearTimeout(tid);
+    }
   };
 
   const connectSSE = ({ base, token, runId }) => {
@@ -905,7 +927,7 @@
       }
     };
     tick();
-    pollTimer = setInterval(tick, 1500);
+    pollTimer = setInterval(tick, 2000); // 2s 轮询，减轻服务与前端压力
   };
 
   const connect = async () => {
@@ -963,6 +985,7 @@
         auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true, // 默认true（checkbox默认checked）
         use_spec: document.getElementById("paramUseSpec")?.checked || false,
         run_existing_seeds: document.getElementById("paramRunExistingSeeds")?.checked || false,
+        llm_report: document.getElementById("paramLlmReport")?.checked || false,
         // 使用默认路径，不再从前端获取
         coverage_filename_origin: "/root/XiangShan/logs/annotated/",
         coverage_filename_later: "/root/XiangShan/logs2/annotated/",
@@ -1102,12 +1125,11 @@
       // 更新模块列表
       if (l2ModulesListEl && data.modules) {
         l2ModulesListEl.innerHTML = "";
-        
+
         for (const [name, stats] of Object.entries(data.modules)) {
           const item = document.createElement("div");
           item.className = "l2-module-item";
-          item.style.cssText = "padding: 8px 12px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border);";
-          
+
           if (stats.exists) {
             const rate = stats.coverage_rate;
             let statusIcon = "🔴";
@@ -1119,28 +1141,22 @@
               statusIcon = "🟡";
               statusColor = "#eab308";
             }
-            
             item.innerHTML = `
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>${statusIcon} ${name}</span>
-                <span style="color: ${statusColor}; font-weight: 600;">${rate}%</span>
+              <div class="l2-module-item__row">
+                <span class="l2-module-item__name" title="${name}">${statusIcon} ${name}</span>
+                <span class="l2-module-item__rate" style="color: ${statusColor}">${rate}%</span>
               </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-                ${stats.covered_lines}/${stats.total_lines} 行
-              </div>
+              <div class="l2-module-item__lines">${stats.covered_lines}/${stats.total_lines} 行</div>
             `;
           } else {
             item.innerHTML = `
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>⚪ ${name}</span>
-                <span style="color: var(--text-muted);">N/A</span>
+              <div class="l2-module-item__row">
+                <span class="l2-module-item__name" title="${name}">⚪ ${name}</span>
+                <span class="l2-module-item__rate" style="color: var(--muted)">N/A</span>
               </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-                文件不存在
-              </div>
+              <div class="l2-module-item__lines">文件不存在</div>
             `;
           }
-          
           l2ModulesListEl.appendChild(item);
         }
       }
