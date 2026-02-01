@@ -54,9 +54,12 @@ def get_line_content_with_context(file_path, line_number, context_lines=6):
         return None
 
 
+# 缓存 find_file_path 结果，避免同一文件重复 os.walk（未覆盖行数多时卡在开头的根因）
+_find_file_path_cache = {}
+
 def find_file_path(filename, search_dir='.'):
     """
-    在指定目录下递归查找文件
+    在指定目录下递归查找文件（带缓存，同一 (filename, search_dir) 只 walk 一次）
     
     参数:
         filename (str): 要查找的文件名（如FPU.scala）
@@ -65,10 +68,16 @@ def find_file_path(filename, search_dir='.'):
     返回:
         str: 文件的完整路径，未找到返回None
     """
-    for root, dirs, files in os.walk(search_dir):
-        if filename in files:
-            return os.path.join(root, filename)
-    return None
+    key = (filename, os.path.abspath(search_dir))
+    if key not in _find_file_path_cache:
+        result = None
+        if os.path.exists(search_dir):
+            for root, dirs, files in os.walk(search_dir):
+                if filename in files:
+                    result = os.path.join(root, filename)
+                    break
+        _find_file_path_cache[key] = result
+    return _find_file_path_cache[key]
 
 
 def get_line_content(file_path, line_number):

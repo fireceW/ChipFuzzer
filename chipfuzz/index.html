@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./assets/style.css" />
@@ -30,10 +30,7 @@
           </div>
         </div>
 
-        <nav class="nav" aria-label="主导航">
-          <a class="nav__link" href="#monitor">运行监控</a>
-          <a class="nav__link" href="#params">参数配置</a>
-        </nav>
+        <nav class="nav" aria-label="主导航"></nav>
 
         <div class="header__actions">
           <button class="btn btn--ghost" id="themeToggle" type="button" aria-label="切换主题">
@@ -47,32 +44,22 @@
 
     <main id="main">
       <section class="hero">
-        <div class="container hero__inner">
-          <p class="hero__kicker">硬件验证 · LLM 驱动</p>
-          <h1 class="hero__title">ChipFuzzer</h1>
-          <p class="hero__tagline">芯片验证框架</p>
-          <p class="hero__desc">大模型生成汇编用例，编译与硬件仿真，覆盖率统计与成功用例保存，全流程在本页实时监控。</p>
-          <div class="hero__cta">
-            <a class="btn btn--primary" href="#monitor">运行监控</a>
-            <a class="btn btn--ghost" href="#params">参数配置</a>
-          </div>
-          <div class="hero__flow" aria-hidden="true">
-            <span>LLM 生成</span>
-            <span class="hero__arrow" aria-hidden="true"></span>
-            <span>编译·仿真</span>
-            <span class="hero__arrow" aria-hidden="true"></span>
-            <span>覆盖率</span>
-            <span class="hero__arrow" aria-hidden="true"></span>
-            <span>本页监控</span>
-          </div>
-          <div class="hero__tech" aria-label="技术要点">
-            <span class="hero__tech-item">LLM 生成 / 修复 / 分析</span>
-            <span class="hero__tech-item">RISC-V 汇编 · 未覆盖代码驱动</span>
-            <span class="hero__tech-item">编译与硬件仿真 · 阶段日志</span>
-            <span class="hero__tech-item">全局与模块覆盖率</span>
-            <span class="hero__tech-item">Agent 记忆 · 策略学习</span>
-            <span class="hero__tech-item">SPEC 集成 · 接口与信号</span>
-            <span class="hero__tech-item">成功用例保存与复现</span>
+        <div class="container hero__shell">
+          <div class="hero-card hero-card--compact">
+            <div class="hero-copy">
+              <p class="hero__kicker">硬件验证 · LLM 驱动</p>
+              <h1 class="hero__title">ChipFuzzer</h1>
+              <p class="hero__tagline">覆盖引导的 Fuzzing 闭环</p>
+              <p class="hero__desc">
+                种子程序经变异得到输入程序，在 ISA 模拟器与 DUT 上执行并比对轨迹；发现不一致即记录缺陷，否则根据覆盖率决定回馈或丢弃。
+              </p>
+              <ul class="hero__bullets" aria-label="核心能力">
+                <li>Seed Programs → Mutation（LLM 辅助）→ Input Program</li>
+                <li>ISA Simulator 与 DUT 双路执行，Execution Trace 比对</li>
+                <li>Mismatch? → Detected Bug；Increased Coverage? → 回馈或 Delete</li>
+              </ul>
+              <div class="hero__cta"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -92,7 +79,7 @@
               <div class="form">
                 <label class="field">
                   <span class="field__label">API Base</span>
-                  <input class="field__input" id="apiBase" value="http://localhost" />
+                  <input class="field__input" id="apiBase" value="http://localhost:8080" placeholder="例如 http://localhost:8080" />
                 </label>
                 <label class="field">
                   <span class="field__label">Token（可选）</span>
@@ -174,6 +161,10 @@
                   <input type="checkbox" id="paramRunExistingSeeds" style="width: auto;" />
                   <span class="field__label" style="margin: 0;">--run_existing_seeds（运行已有成功用例）</span>
                 </label>
+                <label class="field" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="paramLlmReport" style="width: auto;" />
+                  <span class="field__label" style="margin: 0;">--llm-report（使用 LLM 生成用例报告，默认不写）</span>
+                </label>
               </div>
             </div>
 
@@ -196,7 +187,7 @@
               <div class="metrics">
                 <div class="metric">
                   <div class="metric__label">初始覆盖率</div>
-                  <div class="metric__value" id="initialCoverage" style="color: #888;">-</div>
+                  <div class="metric__value metric__value--muted" id="initialCoverage">-</div>
                 </div>
                 <div class="metric">
                   <div class="metric__label">当前覆盖率</div>
@@ -204,7 +195,7 @@
                 </div>
                 <div class="metric">
                   <div class="metric__label">覆盖率增量</div>
-                  <div class="metric__value metric__value--sm" id="coverageDelta" style="color: #4ade80;">+0%</div>
+                  <div class="metric__value metric__value--sm metric__value--success" id="coverageDelta">+0%</div>
                 </div>
                 <div class="metric">
                   <div class="metric__label">总覆盖行数</div>
@@ -221,68 +212,60 @@
               </div>
             </div>
 
-            <div class="card card--wide" style="padding: 14px 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div class="card card--wide card--compact">
+              <div class="card__head">
                 <div>
-                  <h3 class="card__title" style="margin-bottom: 2px; font-size: 15px;">执行统计</h3>
-                  <p class="card__desc" style="margin: 0; font-size: 11px; opacity: 0.8;">大模型生成和模拟器执行的统计信息</p>
+                  <h3 class="card__title">执行统计</h3>
+                  <p class="card__desc">大模型生成和模拟器执行的统计信息</p>
                 </div>
               </div>
-              
-              <div class="metrics" style="grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 0;">
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">LLM 生成次数</div>
-                  <div class="metric__value" id="llmGenerationCount" style="font-size: 20px; margin-top: 0; line-height: 1.2;">0</div>
+              <div class="metrics metrics--compact">
+                <div class="metric">
+                  <div class="metric__label">LLM 生成次数</div>
+                  <div class="metric__value" id="llmGenerationCount">0</div>
                 </div>
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">编译成功率</div>
-                  <div class="metric__value" id="compileSuccessRate" style="font-size: 20px; margin-top: 0; line-height: 1.2; color: #4ade80;">-</div>
+                <div class="metric">
+                  <div class="metric__label">编译成功率</div>
+                  <div class="metric__value metric__value--success" id="compileSuccessRate">-</div>
                 </div>
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">模拟器成功执行</div>
-                  <div class="metric__value" id="emulatorSuccessCount" style="font-size: 20px; margin-top: 0; line-height: 1.2;">0</div>
+                <div class="metric">
+                  <div class="metric__label">模拟器成功执行</div>
+                  <div class="metric__value" id="emulatorSuccessCount">0</div>
                 </div>
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">模拟器执行成功率</div>
-                  <div class="metric__value" id="emulatorSuccessRate" style="font-size: 20px; margin-top: 0; line-height: 1.2; color: #4ade80;">-</div>
+                <div class="metric">
+                  <div class="metric__label">模拟器执行成功率</div>
+                  <div class="metric__value metric__value--success" id="emulatorSuccessRate">-</div>
                 </div>
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">成功覆盖 case 数</div>
-                  <div class="metric__value" id="coverageImprovedCount" style="font-size: 20px; margin-top: 0; line-height: 1.2;">0</div>
+                <div class="metric">
+                  <div class="metric__label">成功覆盖 case 数</div>
+                  <div class="metric__value" id="coverageImprovedCount">0</div>
                 </div>
-                <div class="metric" style="padding: 10px 12px;">
-                  <div class="metric__label" style="font-size: 10px; margin-bottom: 4px; opacity: 0.85;">占 LLM 生成比例</div>
-                  <div class="metric__value" id="coverageImprovedRate" style="font-size: 20px; margin-top: 0; line-height: 1.2; color: #4ade80;">-</div>
+                <div class="metric">
+                  <div class="metric__label">占 LLM 生成比例</div>
+                  <div class="metric__value metric__value--success" id="coverageImprovedRate">-</div>
                 </div>
               </div>
-
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
-                <div>
-                  <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px; opacity: 0.85;">LLM vs 模拟器执行对比</div>
-                  <div style="height: 160px; position: relative;">
-                    <canvas id="statisticsChart"></canvas>
-                  </div>
+              <div class="charts-row">
+                <div class="chart-block">
+                  <div class="chart-block__label">LLM vs 模拟器执行对比</div>
+                  <div class="chart-block__canvas"><canvas id="statisticsChart"></canvas></div>
                 </div>
-                <div>
-                  <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px; opacity: 0.85;">覆盖率增长趋势</div>
-                  <div style="height: 160px; position: relative;">
-                    <canvas id="coverageChart"></canvas>
-                  </div>
+                <div class="chart-block">
+                  <div class="chart-block__label">覆盖率增长趋势</div>
+                  <div class="chart-block__canvas"><canvas id="coverageChart"></canvas></div>
                 </div>
               </div>
             </div>
 
-            <div class="card card--wide" style="padding: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="card card--wide">
+              <div class="card__head card__head--row">
                 <div>
-                  <h3 class="card__title" style="margin-bottom: 4px; font-size: 16px;">验证流程实时展示</h3>
-                  <p class="card__desc" style="margin: 0; font-size: 12px; opacity: 0.8;">
-                    只保留关键三步：LLM 生成的用例、编译/仿真执行的命令、覆盖率分析结论。
-                  </p>
+                  <h3 class="card__title">验证流程实时展示</h3>
+                  <p class="card__desc">只保留关键三步：LLM 生成的用例、编译/仿真执行的命令、覆盖率分析结论。</p>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn--ghost btn--sm" type="button" id="btnResetFlow" style="font-size: 11px;">重置</button>
-                  <button class="btn btn--ghost btn--sm" type="button" id="btnExportFlow" style="font-size: 11px;">导出图片</button>
+                <div class="card__actions">
+                  <button class="btn btn--ghost btn--sm" type="button" id="btnResetFlow">重置</button>
+                  <button class="btn btn--ghost btn--sm" type="button" id="btnExportFlow">导出图片</button>
                 </div>
               </div>
 
@@ -330,16 +313,19 @@
             </div>
 
             <div class="card card--wide">
-              <h3 class="card__title">L2 模块组覆盖率</h3>
-              <p class="card__desc">单独统计 L2Cache、L2TLB 等关键模块的覆盖情况。
+              <div class="card__head card__head--row">
+                <div>
+                  <h3 class="card__title">L2 模块组覆盖率</h3>
+                  <p class="card__desc">单独统计 L2Cache、L2TLB 等关键模块的覆盖情况。</p>
+                </div>
                 <button class="btn btn--ghost btn--sm" type="button" id="btnRefreshL2">刷新</button>
-              </p>
-              
-              <div class="metrics" style="margin-bottom: 12px;">
+              </div>
+              <div class="metrics metrics--l2">
                 <div class="metric">
                   <div class="metric__label">L2 总体覆盖率</div>
                   <div class="metric__value" id="l2TotalCoverage">-</div>
                 </div>
+                <!-- 暂时隐藏，看效果
                 <div class="metric">
                   <div class="metric__label">已覆盖行数</div>
                   <div class="metric__value metric__value--sm" id="l2CoveredLines">0</div>
@@ -348,9 +334,10 @@
                   <div class="metric__label">未覆盖行数</div>
                   <div class="metric__value metric__value--sm" id="l2UncoveredLines">0</div>
                 </div>
+                -->
               </div>
 
-              <div class="l2-modules" id="l2ModulesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">
+              <div class="l2-modules" id="l2ModulesList">
                 <div class="recent__empty">点击刷新获取数据...</div>
               </div>
             </div>
@@ -370,93 +357,93 @@
               <div class="codeCard__title">命令行参数</div>
             </div>
             <div style="overflow-x: auto;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <table>
                 <thead>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <th style="text-align: left; padding: 8px 12px;">参数</th>
-                    <th style="text-align: left; padding: 8px 12px;">类型 / 可选值</th>
-                    <th style="text-align: left; padding: 8px 12px;">默认值</th>
-                    <th style="text-align: left; padding: 8px 12px;">说明</th>
+                  <tr>
+                    <th>参数</th>
+                    <th>类型 / 可选值</th>
+                    <th>默认值</th>
+                    <th>说明</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--coverage_filename_origin</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">&lt;项目根&gt;/logs_testcase/annotated/</td>
-                    <td style="padding: 8px 12px;">原始覆盖率文件目录（annotated 输出）。</td>
+                  <tr>
+                    <td><code>--coverage_filename_origin</code></td>
+                    <td>str</td>
+                    <td>&lt;项目根&gt;/logs_testcase/annotated/</td>
+                    <td>原始覆盖率文件目录（annotated 输出）。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--coverage_filename_later</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">&lt;项目根&gt;/logs2/annotated/</td>
-                    <td style="padding: 8px 12px;">后续覆盖率文件目录（用于对比）。</td>
+                  <tr>
+                    <td><code>--coverage_filename_later</code></td>
+                    <td>str</td>
+                    <td>&lt;项目根&gt;/logs2/annotated/</td>
+                    <td>后续覆盖率文件目录（用于对比）。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--global_annotated_dir</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">&lt;项目根&gt;/logs_global/annotated</td>
-                    <td style="padding: 8px 12px;">全局覆盖率统计使用的 annotated 目录。</td>
+                  <tr>
+                    <td><code>--global_annotated_dir</code></td>
+                    <td>str</td>
+                    <td>&lt;项目根&gt;/logs_global/annotated</td>
+                    <td>全局覆盖率统计使用的 annotated 目录。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--module</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">CSR</td>
-                    <td style="padding: 8px 12px;">指定单模块名称（与自动多模块二选一）。</td>
+                  <tr>
+                    <td><code>--module</code></td>
+                    <td>str</td>
+                    <td>CSR</td>
+                    <td>指定单模块名称（与自动多模块二选一）。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--model</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">KJY</td>
-                    <td style="padding: 8px 12px;">模型/配置标识（如 KJY）。</td>
+                  <tr>
+                    <td><code>--model</code></td>
+                    <td>str</td>
+                    <td>KJY</td>
+                    <td>模型/配置标识（如 KJY）。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--num</code></td>
-                    <td style="padding: 8px 12px;">int</td>
-                    <td style="padding: 8px 12px;">100</td>
-                    <td style="padding: 8px 12px;">模块索引或自动模式下的模块数量。</td>
+                  <tr>
+                    <td><code>--num</code></td>
+                    <td>int</td>
+                    <td>100</td>
+                    <td>模块索引或自动模式下的模块数量。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--dat</code></td>
-                    <td style="padding: 8px 12px;">str</td>
-                    <td style="padding: 8px 12px;">—</td>
-                    <td style="padding: 8px 12px;">任务专属的 .dat 文件路径（可选）。</td>
+                  <tr>
+                    <td><code>--dat</code></td>
+                    <td>str</td>
+                    <td>—</td>
+                    <td>任务专属的 .dat 文件路径（可选）。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--mode</code></td>
-                    <td style="padding: 8px 12px;">continue / fresh</td>
-                    <td style="padding: 8px 12px;">continue</td>
-                    <td style="padding: 8px 12px;">continue=继续使用现有覆盖率；fresh=新建覆盖率文件。</td>
+                  <tr>
+                    <td><code>--mode</code></td>
+                    <td>continue / fresh</td>
+                    <td>continue</td>
+                    <td>continue=继续使用现有覆盖率；fresh=新建覆盖率文件。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--max_iterations</code></td>
-                    <td style="padding: 8px 12px;">int</td>
-                    <td style="padding: 8px 12px;">13</td>
-                    <td style="padding: 8px 12px;">每个模块最大尝试次数，达到后自动切换下一模块。</td>
+                  <tr>
+                    <td><code>--max_iterations</code></td>
+                    <td>int</td>
+                    <td>13</td>
+                    <td>每个模块最大尝试次数，达到后自动切换下一模块。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--auto_switch</code></td>
-                    <td style="padding: 8px 12px;">flag</td>
-                    <td style="padding: 8px 12px;">默认开启</td>
-                    <td style="padding: 8px 12px;">启用自动切换模块：当前模块完成或达最大次数后切到下一模块。</td>
+                  <tr>
+                    <td><code>--auto_switch</code></td>
+                    <td>flag</td>
+                    <td>默认开启</td>
+                    <td>启用自动切换模块：当前模块完成或达最大次数后切到下一模块。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--no-auto-switch</code></td>
-                    <td style="padding: 8px 12px;">flag</td>
-                    <td style="padding: 8px 12px;">—</td>
-                    <td style="padding: 8px 12px;">禁用自动切换模块。</td>
+                  <tr>
+                    <td><code>--no-auto-switch</code></td>
+                    <td>flag</td>
+                    <td>—</td>
+                    <td>禁用自动切换模块。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--use_spec</code></td>
-                    <td style="padding: 8px 12px;">flag</td>
-                    <td style="padding: 8px 12px;">False</td>
-                    <td style="padding: 8px 12px;">启用 SPEC 文件分析，用 spec 中的模块接口信息指导测试生成。</td>
+                  <tr>
+                    <td><code>--use_spec</code></td>
+                    <td>flag</td>
+                    <td>False</td>
+                    <td>启用 SPEC 文件分析，用 spec 中的模块接口信息指导测试生成。</td>
                   </tr>
-                  <tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding: 8px 12px;"><code>--run_existing_seeds</code></td>
-                    <td style="padding: 8px 12px;">flag</td>
-                    <td style="padding: 8px 12px;">False</td>
-                    <td style="padding: 8px 12px;">在开始 LLM 生成前，先运行 successed/&lt;module&gt;/ 下已有成功用例。</td>
+                  <tr>
+                    <td><code>--run_existing_seeds</code></td>
+                    <td>flag</td>
+                    <td>False</td>
+                    <td>在开始 LLM 生成前，先运行 successed/&lt;module&gt;/ 下已有成功用例。</td>
                   </tr>
                 </tbody>
               </table>

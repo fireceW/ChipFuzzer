@@ -99,6 +99,7 @@ class StartRunReq(BaseModel):
     auto_switch: bool = True  # 是否自动切换模块（默认开启）
     use_spec: bool = False  # 是否使用 SPEC 文件分析
     run_existing_seeds: bool = False  # 是否运行已有成功用例
+    llm_report: bool = False  # 是否使用 LLM 生成用例报告（默认不写）
 
 # 记录当前运行模式，用于判断是否显示旧覆盖率
 current_run_mode = {"mode": "continue", "fresh_start_time": 0}
@@ -321,7 +322,11 @@ def start_run(req: StartRunReq) -> dict:
     # 如果启用运行已有成功用例
     if req.run_existing_seeds:
         cmd.append("--run_existing_seeds")
-    
+
+    # 如果启用 LLM 生成用例报告
+    if req.llm_report:
+        cmd.append("--llm-report")
+
     try:
         with log_path.open("ab", buffering=0) as out:
             p = subprocess.Popen(

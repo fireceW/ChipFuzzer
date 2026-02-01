@@ -869,9 +869,10 @@ _start:
 class ModuleCoverageSession:
     """围绕一个 module 的完整测试会话（包含已有 good seeds + LLM 新生成）。"""
 
-    def __init__(self, module_name: str, config: PathConfig, Coverage_filename_origin, Coverage_filename_later, model, global_coverage_manager=None, use_spec=False):
+    def __init__(self, module_name: str, config: PathConfig, Coverage_filename_origin, Coverage_filename_later, model, global_coverage_manager=None, use_spec=False, use_llm_report=True):
         self.module_name = module_name
         self.config = config
+        self.use_llm_report = use_llm_report  # 是否使用 LLM 分析覆盖代码生成用例报告
         self.emulator = EmulatorRunner(config)
         self.subproc = SubprocessRunner()
         self.uncovered_repo = UncoveredCodeRepository(config, Coverage_filename_origin, Coverage_filename_later)
@@ -1433,8 +1434,10 @@ class ModuleCoverageSession:
                                     coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                                     if coverage_info and "coverage_percentage" in coverage_info:
                                         current_coverage = coverage_info["coverage_percentage"]
+                                        if self.statistics["coverage_data"]:
+                                            last_pct = self.statistics["coverage_data"][-1].get("coverage_percentage", 0) or 0
+                                            current_coverage = max(current_coverage, last_pct)
                                         uncovered_count = self.global_coverage_manager.baseline_uncovered_count
-                                        
                                         self.statistics["coverage_data"].append({
                                             "timestamp": time.time(),
                                             "coverage_percentage": current_coverage,
@@ -1553,9 +1556,12 @@ class ModuleCoverageSession:
                 coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                 if coverage_info and "coverage_percentage" in coverage_info:
                     current_coverage = coverage_info["coverage_percentage"]
+                    # 保证单调不降：若因缓存/重启等出现比上一点低则用上一点，避免图表“先升后降”
+                    if self.statistics["coverage_data"]:
+                        last_pct = self.statistics["coverage_data"][-1].get("coverage_percentage", 0) or 0
+                        current_coverage = max(current_coverage, last_pct)
                     uncovered_count = self.global_coverage_manager.baseline_uncovered_count
                     
-                    # 记录覆盖率数据
                     self.statistics["coverage_data"].append({
                         "timestamp": time.time(),
                         "coverage_percentage": current_coverage,
@@ -1716,16 +1722,17 @@ class ModuleCoverageSession:
                 shutil.copy(testcase_bin_path, os.path.join(GJ_SUCCESS_SEED_DIR, bin_file_name))
                 print(f"✅ BIN 文件已保存到 GJ_Success_Seed: {bin_file_name}")
             
-            # 生成并保存报告文件
-            self._generate_case_report(
-                case_name=asm_file_name.replace(".S", ""),
-                module_name=self.module_name,
-                global_improved=global_improved,
-                global_reduced=global_reduced,
-                global_newly_covered=global_newly_covered,
-                covered_lines=covered_lines,
-                output_dir=GJ_SUCCESS_SEED_DIR
-            )
+            # 生成并保存报告文件（仅当启用 --llm-report 时）
+            if self.use_llm_report:
+                self._generate_case_report(
+                    case_name=asm_file_name.replace(".S", ""),
+                    module_name=self.module_name,
+                    global_improved=global_improved,
+                    global_reduced=global_reduced,
+                    global_newly_covered=global_newly_covered,
+                    covered_lines=covered_lines,
+                    output_dir=GJ_SUCCESS_SEED_DIR
+                )
             
             # 2) 保存到 all_seed_dir
             with open(os.path.join(self.config.all_seed_dir, asm_file_name), 'w') as f:
@@ -1856,10 +1863,13 @@ class ModuleCoverageSession:
         """
         report_file = os.path.join(output_dir, f"{case_name}.txt")
         
-        # 分析实际覆盖的模块和功能
+        # 分析实际覆盖的模块和功能（仅在启用 --llm-report 时才会调用此函数）
         # 优先使用 global_newly_covered（全局新覆盖的代码），如果没有则使用 covered_lines
         lines_to_analyze = global_newly_covered if global_newly_covered else covered_lines
-        analysis = self._analyze_covered_modules(lines_to_analyze)
+        if lines_to_analyze:
+            analysis = self._analyze_covered_modules(lines_to_analyze)
+        else:
+            analysis = {"main_module": "未知", "module_distribution": {}, "main_function": "未知"}
         
         main_covered_module = analysis["main_module"]
         module_dist = analysis["module_distribution"]
@@ -2034,6 +2044,13 @@ def parse_arguments():
         help='运行已有的成功用例：在开始 LLM 生成之前，先运行 successed/<module>/ 目录下的已有成功用例（默认：fresh 模式运行，continue 模式跳过）'
     )
 
+    parser.add_argument(
+        '--llm-report',
+        action='store_true',
+        default=False,
+        help='启用 LLM 生成用例报告：成功用例保存时调用大模型分析覆盖代码并生成报告（默认不写报告）'
+    )
+
     return parser.parse_args()
 
 
@@ -2125,6 +2142,7 @@ def main():
     print(f"   使用模型: {model}")
     print(f"   运行模式: {run_mode} ({'继续累积覆盖率' if run_mode == 'continue' else '创建新的覆盖率文件'})")
     print(f"   SPEC 文件分析: {'启用' if args.use_spec else '禁用'}")
+    print(f"   LLM 用例报告: {'启用' if args.llm_report else '不写报告（默认）'}")
     print(f"   全局 annotated 目录: {config.global_annotated_dir}")
     print(f"   累积覆盖率文件: {config.sum_dat_file}")
     print(f"=" * 60)
@@ -2272,7 +2290,8 @@ def main():
                 Coverage_filename_origin, Coverage_filename_later, 
                 model,
                 global_coverage_manager=global_coverage_manager,  # 共享同一个实例
-                use_spec=args.use_spec  # 从命令行参数获取
+                use_spec=args.use_spec,  # 从命令行参数获取
+                use_llm_report=args.llm_report  # 是否使用 LLM 写用例报告（默认否）
             )
             
             # 先跑已有的成功用例（这可能需要较长时间，特别是如果有多个用例）
