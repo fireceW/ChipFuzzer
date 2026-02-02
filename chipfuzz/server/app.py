@@ -31,6 +31,10 @@ app.add_middleware(
 
 # 项目根目录（ChipFuzzer_cursor 所在位置）
 BASE_DIR = Path(os.environ.get("CHIPFUZZER_BASE", "/root/ChipFuzzer_cursor")).resolve()
+# 确保可导入项目内模块（如 getmodulecoverstate）
+import sys
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # 运行记录目录
 RUNS_DIR = Path(os.environ.get("CHIPFUZZER_RUNS", str(BASE_DIR / "runs"))).resolve()
@@ -86,6 +90,7 @@ def _is_pid_running(pid: int) -> bool:
 
 class StartRunReq(BaseModel):
     module: str = "Bku"
+    start_module_index: Optional[int] = None  # 从第 N 个模块开始（1=第一个），不传或 0 表示从头
     model: str = "qwen3:235b"
     # origin: 用于读取初始未覆盖代码（基线）
     coverage_filename_origin: str = "/root/XiangShan/logs/annotated/"
@@ -139,6 +144,39 @@ def list_runs() -> dict:
             if p.is_dir():
                 runs.append({"runId": p.name})
     return {"runs": runs}
+
+
+# 默认 annotated 目录（与启动任务时的 coverage_filename_origin 一致）
+DEFAULT_ANNOTATED_DIR = os.environ.get(
+    "CHIPFUZZER_ANNOTATED_DIR",
+    "/root/XiangShan/logs/annotated"
+)
+
+
+@app.get("/api/top-uncovered-modules")
+def get_top_uncovered_modules(
+    num: int = Query(100, ge=1, le=200, description="返回前 N 个模块"),
+    annotated_dir: Optional[str] = Query(None, description="annotated 目录，不传则用默认"),
+) -> dict:
+    """
+    获取未覆盖代码最多的模块列表，用于前端「起始模块」下拉。
+    开启自动切换时，任务会从所选模块开始验证，前面的模块会跳过。
+    返回: { "modules": [ {"rank": 1, "module": "LogPerfEndpoint", "uncovered": 41413}, ... ] }
+    """
+    try:
+        from getmodulecoverstate import getTopUncoveredModulesWithCounts
+        dir_path = annotated_dir or DEFAULT_ANNOTATED_DIR
+        if not os.path.isdir(dir_path):
+            return {"modules": [], "error": f"目录不存在: {dir_path}"}
+        rows = getTopUncoveredModulesWithCounts(num, dir_path)
+        modules = [
+            {"rank": i + 1, "module": name, "uncovered": count}
+            for i, (name, count) in enumerate(rows)
+        ]
+        return {"modules": modules}
+    except Exception as e:
+        import traceback
+        return {"modules": [], "error": str(e), "detail": traceback.format_exc()}
 
 
 @app.get("/api/recent-assembly-codes")
@@ -302,15 +340,19 @@ def start_run(req: StartRunReq) -> dict:
         BACKEND_SCRIPT,
         "--module", req.module,
         "--model", req.model,
+    ]
+    if req.start_module_index is not None and req.start_module_index >= 1:
+        cmd.extend(["--start-index", str(req.start_module_index)])
+    cmd.extend([
         "--coverage_filename_origin", req.coverage_filename_origin,
         "--coverage_filename_later", req.coverage_filename_later,
         "--global_annotated_dir", req.global_annotated_dir,
         "--mode", req.mode,
         "--max_iterations", str(req.max_iterations),
         "--num", str(req.num),
-        "--dat", str(dat_file_path),  # 添加 .dat 文件路径参数
-    ]
-    
+        "--dat", str(dat_file_path),
+    ])
+
     # 如果启用自动切换模块
     if req.auto_switch:
         cmd.append("--auto_switch")

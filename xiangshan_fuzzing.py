@@ -1229,10 +1229,25 @@ class ModuleCoverageSession:
                 except Exception as e:
                     print(f"⚠️ 保存统计数据时出错: {e}")
             
-            if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
-                result = callOpenAI_KJY(prompt, self.model)
-            else:
-                result = callOpenAI(prompt)
+            # LLM 调用：失败时重试 1 次，仍失败则跳过本 case，避免长时间卡死整轮
+            result = None
+            for llm_attempt in range(2):
+                try:
+                    if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
+                        result = callOpenAI_KJY(prompt, self.model)
+                    else:
+                        result = callOpenAI(prompt)
+                    break
+                except Exception as e:
+                    print(f"❌ LLM 调用失败 (尝试 {llm_attempt + 1}/2): {e}")
+                    if llm_attempt == 0:
+                        print(f"   将重试一次...")
+                    else:
+                        print(f"   跳过本 case，继续下一轮迭代（避免长时间卡死）")
+                        self.fail_num += 1
+                        compile_error_info = None
+            if result is None:
+                continue
             
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -1635,36 +1650,38 @@ class ModuleCoverageSession:
                     )
                     
                     print(f"🤖 正在调用 LLM 分析原因并生成改进代码...")
-                    if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
-                        analysis_result = callOpenAI_KJY(analysis_prompt, self.model)
-                    else:
-                        analysis_result = callOpenAI(analysis_prompt)
-                    
-                    # 保存分析结果用于下次参考
-                    analysis_dir = "/root/ChipFuzzer_cursor/analysis_log"
-                    os.makedirs(analysis_dir, exist_ok=True)
-                    analysis_path = os.path.join(
-                        analysis_dir,
-                        f"analysis_{self.module_name}_{int(time.time())}.txt"
-                    )
-                    with open(analysis_path, "w", encoding="utf-8") as f:
-                        f.write(f"模块: {self.module_name}\n")
-                        f.write(f"连续无覆盖次数: {consecutive_no_coverage}\n")
-                        f.write(f"目标代码:\n{uncovered_code_line[:500]}\n")
-                        f.write(f"LLM 分析:\n{analysis_result}\n")
-                    
-                    # 记录分析模式的交互
-                    self.agent_memory.record_interaction(
-                        uncovered_code=uncovered_code_line,
-                        prompt_type="analysis",
-                        asm_code=raw_asm_code,
-                        success=False,
-                        compile_success=True,
-                        coverage_improved=False,
-                        strategy=f"analysis_mode_iteration_{iteration_count}",
-                        feedback=str(analysis_result)[:500]
-                    )
-                    print(f"💾 分析结果已保存: {analysis_path}")
+                    try:
+                        if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
+                            analysis_result = callOpenAI_KJY(analysis_prompt, self.model)
+                        else:
+                            analysis_result = callOpenAI(analysis_prompt)
+                    except Exception as e:
+                        print(f"❌ LLM 分析调用失败: {e}，跳过分析，继续下一轮（避免卡死）")
+                        analysis_result = None
+                    if analysis_result is not None:
+                        # 保存分析结果用于下次参考
+                        analysis_dir = "/root/ChipFuzzer_cursor/analysis_log"
+                        os.makedirs(analysis_dir, exist_ok=True)
+                        analysis_path = os.path.join(
+                            analysis_dir,
+                            f"analysis_{self.module_name}_{int(time.time())}.txt"
+                        )
+                        with open(analysis_path, "w", encoding="utf-8") as f:
+                            f.write(f"模块: {self.module_name}\n")
+                            f.write(f"连续无覆盖次数: {consecutive_no_coverage}\n")
+                            f.write(f"目标代码:\n{uncovered_code_line[:500]}\n")
+                            f.write(f"LLM 分析:\n{analysis_result}\n")
+                        self.agent_memory.record_interaction(
+                            uncovered_code=uncovered_code_line,
+                            prompt_type="analysis",
+                            asm_code=raw_asm_code,
+                            success=False,
+                            compile_success=True,
+                            coverage_improved=False,
+                            strategy=f"analysis_mode_iteration_{iteration_count}",
+                            feedback=str(analysis_result)[:500]
+                        )
+                        print(f"💾 分析结果已保存: {analysis_path}")
         
         # 循环正常结束（无未覆盖代码）
         print(f"\n🎉 模块 [{self.module_name}] 测试完成！所有代码已覆盖！")
@@ -1976,7 +1993,14 @@ def parse_arguments():
         type=str,
         default="CSR",
        # required=True,
-        help='target module'
+        help='目标/起始模块。开启 auto_switch 时表示从此模块开始验证；若指定了 --start-index 则以此序号为准'
+    )
+    parser.add_argument(
+        '--start-index',
+        type=int,
+        default=None,
+        metavar='N',
+        help='从第 N 个模块开始验证（1=第一个）。与 auto_switch 配合：执行时先取前 num 个模块列表，从第 N 个开始往后验证，前面跳过'
     )
     
     parser.add_argument(
@@ -2111,25 +2135,25 @@ def main():
         args.auto_switch = True
         print(f"ℹ️  自动切换模块模式：默认启用（如需禁用，请使用 --no-auto-switch）")
     
-    if args.module and args.module != "auto":
+    # 优先支持「起始序号」：只填数字 N，从第 N 个模块开始（避免前端拉百条下拉）
+    if getattr(args, 'start_index', None) is not None and args.start_index >= 1:
+        all_modules = getTopUncoveredModules(num, args.coverage_filename_origin)
+        start_idx = min(args.start_index - 1, len(all_modules))  # 1-based -> 0-based
+        module_list = all_modules[start_idx:]
+        print(f"🔄 从第 {args.start_index} 个模块开始验证，共 {len(module_list)} 个模块（前 {start_idx} 个已跳过）")
+    elif args.module and args.module != "auto":
         # 单模块模式
         if args.auto_switch:
-            # 如果开启了自动切换，先获取未覆盖代码最多的 num 个模块
-            # 然后找到当前模块在列表中的位置，从该位置开始测试
             all_modules = getTopUncoveredModules(num, args.coverage_filename_origin)
             if args.module in all_modules:
-                # 找到当前模块的位置，从该位置开始
                 start_idx = all_modules.index(args.module)
                 module_list = all_modules[start_idx:]
             else:
-                # 如果当前模块不在列表中，先测试当前模块，然后测试列表中的模块
                 module_list = [args.module] + all_modules
             print(f"🔄 自动切换模式：将从模块 {args.module} 开始，共 {len(module_list)} 个模块")
         else:
-            # 不开启自动切换，只测试指定模块
             module_list = [args.module]
     else:
-        # 自动选择模式：获取未覆盖代码最多的 num 个模块
         module_list = getTopUncoveredModules(num, args.coverage_filename_origin)
     
     # 每模块最大尝试次数

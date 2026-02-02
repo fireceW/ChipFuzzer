@@ -967,6 +967,9 @@
     connectPolling({ base, token, runId });
   };
 
+  const paramModuleEl = document.getElementById("paramModule");
+  const paramStartModuleIndexEl = document.getElementById("paramStartModuleIndex");
+
   if (btnStartRun) {
     btnStartRun.addEventListener("click", async () => {
       const { base, token } = getConfig();
@@ -976,17 +979,18 @@
       }
       
       // 获取任务参数
+      const startIdx = parseInt(paramStartModuleIndexEl?.value, 10);
       const params = {
-        module: document.getElementById("paramModule")?.value || "Bku",
+        module: (paramModuleEl?.value || "").trim() || "LogPerfEndpoint",
+        start_module_index: (Number.isNaN(startIdx) || startIdx < 1) ? null : startIdx,
         model: document.getElementById("paramModel")?.value || "qwen3:235b",
         mode: document.getElementById("paramMode")?.value || "continue",
         max_iterations: parseInt(document.getElementById("paramMaxIterations")?.value) || 13,
         num: parseInt(document.getElementById("paramNum")?.value) || 100,
-        auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true, // 默认true（checkbox默认checked）
+        auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true,
         use_spec: document.getElementById("paramUseSpec")?.checked || false,
         run_existing_seeds: document.getElementById("paramRunExistingSeeds")?.checked || false,
         llm_report: document.getElementById("paramLlmReport")?.checked || false,
-        // 使用默认路径，不再从前端获取
         coverage_filename_origin: "/root/XiangShan/logs/annotated/",
         coverage_filename_later: "/root/XiangShan/logs2/annotated/",
         global_annotated_dir: "/root/XiangShan/logs_global/annotated",

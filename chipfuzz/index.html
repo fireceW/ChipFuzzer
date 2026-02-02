@@ -117,8 +117,13 @@
 
               <div class="form">
                 <label class="field">
-                  <span class="field__label">--module</span>
-                  <input class="field__input" id="paramModule" value="Bku" />
+                  <span class="field__label">--module（目标模块）</span>
+                  <input class="field__input" id="paramModule" value="LogPerfEndpoint" placeholder="单模块或自动切换时的起始模块名" />
+                </label>
+                <label class="field">
+                  <span class="field__label">起始序号（从第 N 个开始）</span>
+                  <p class="field__hint" style="margin: 0 0 6px 0; font-size: 0.9em; color: var(--muted);">填数字即可，例如上次验证到第 15 个，填 16 则从第 16 个模块开始，前面跳过。留空或 1 表示从头。</p>
+                  <input class="field__input" type="number" id="paramStartModuleIndex" min="1" placeholder="1" style="max-width: 8em;" />
                 </label>
                 <label class="field">
                   <span class="field__label">模型类型</span>
