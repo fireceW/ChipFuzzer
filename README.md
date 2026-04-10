@@ -1,6 +1,6 @@
 # ChipFuzzer
 
-一个基于大语言模型（LLM）的自动化硬件验证框架，专门为 XiangShan RISC-V 处理器设计，通过智能生成测试用例来提升代码覆盖率。
+一个基于大语言模型（LLM）的自动化硬件验证框架，面向 RISC-V 处理器与相关硬件项目，通过智能生成测试用例来提升代码覆盖率。
 
 ## 📋 目录
 
@@ -47,7 +47,7 @@ ChipFuzzer 是一个创新的硬件验证框架，它结合了：
 - **策略学习**：从失败中学习，避免重复错误
 
 ### 4. SPEC 文件集成
-- **自动解析**：解析 XiangShan SPEC 文件（`*spec*.sv`）
+- **自动解析**：解析项目中的 SPEC 文件（`*spec*.sv`）
 - **信号提取**：提取模块接口、信号宽度等关键信息
 - **智能匹配**：将 SPEC 信息整合到 LLM prompt 中
 - **测试建议**：基于 SPEC 生成针对性的测试策略
@@ -98,7 +98,7 @@ ChipFuzzer 是一个创新的硬件验证框架，它结合了：
 - Python 3.8+
 - RISC-V 工具链（GCC、objdump 等）
 - Verilator（用于覆盖率分析）
-- XiangShan 项目环境
+- 目标硬件项目环境
 - LLM API 访问权限（OpenAI API 或本地模型）
 
 ### 安装步骤
@@ -116,7 +116,7 @@ pip install -r chipfuzz/server/requirements.txt
 
 3. **配置路径**
 编辑 `config.py` 或通过命令行参数设置：
-- XiangShan 项目路径
+- 目标项目路径
 - 覆盖率文件路径
 - LLM API 配置
 
@@ -132,14 +132,14 @@ python3 -m uvicorn app:app --host 0.0.0.0 --port 8080
 
 ```bash
 # 测试单个模块
-python xiangshan_fuzzing.py \
+python <backend-script>.py \
     --module Bku \
     --model qwen3:235b \
     --mode continue \
     --max_iterations 20
 
 # 自动模式（测试多个模块）
-python xiangshan_fuzzing.py \
+python <backend-script>.py \
     --module auto \
     --num 5 \
     --model qwen3:235b \
@@ -147,7 +147,7 @@ python xiangshan_fuzzing.py \
     --auto_switch
 
 # 使用 SPEC 文件增强
-python xiangshan_fuzzing.py \
+python <backend-script>.py \
     --module L2TLB \
     --model qwen3:235b \
     --use_spec \
@@ -230,10 +230,10 @@ location /api/ {
 主要路径在 `config.py` 中定义：
 
 ```python
-project_root = "/root/XiangShan/"
-testcase_dir = "/root/XiangShan/testcase"
-global_annotated_dir = "/root/XiangShan/logs_global/annotated"
-sum_dat_file = "/root/XiangShan/sum_gj.dat"
+project_root = "/path/to/target_project/"
+testcase_dir = "/path/to/testcases"
+global_annotated_dir = "/path/to/annotated"
+sum_dat_file = "/path/to/sum_gj.dat"
 ```
 
 ### LLM 配置
@@ -259,7 +259,7 @@ OPENAI_API_BASE = "https://api.openai.com/v1"
 
 ```
 ChipFuzzer/
-├── xiangshan_fuzzing.py      # 主程序入口
+├── 主后端脚本                # 主程序入口
 ├── global_coverage.py         # 全局覆盖率管理
 ├── agent_memory.py            # Agent 记忆系统
 ├── code_analyzer.py           # 代码分析器
@@ -344,9 +344,9 @@ ChipFuzzer/
 - `GJ_log/module_report_{timestamp}.txt`: 模块测试报告
 
 ### 覆盖率文件
-- `/root/XiangShan/sum_gj.dat`: 累积覆盖率数据
-- `/root/XiangShan/coverage.info`: 覆盖率信息文件
-- `/root/XiangShan/logs_global/annotated/`: 带注释的源代码
+- `sum_gj.dat`: 累积覆盖率数据
+- `coverage.info`: 覆盖率信息文件
+- `annotated/`: 带注释的源代码
 
 ## ❓ 常见问题
 
@@ -356,7 +356,7 @@ A: 框架会自动调用 LLM 修复代码，最多尝试 3 次。如果仍然失
 ### Q: 如何查看覆盖率报告？
 A: 使用 `genhtml` 工具：
 ```bash
-cd /root/XiangShan
+cd /path/to/target_project
 genhtml coverage.info --output-directory coverage_report
 ```
 
