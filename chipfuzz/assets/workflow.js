@@ -443,7 +443,7 @@
           }
         }
       }
-    }, 200); // 每 200ms 检查一次
+    }, 400); // 每 400ms 检查一次，降低长时间运行时的 CPU 占用
 
     // 同时保留 MutationObserver 作为备用
     const observer = new MutationObserver(() => {
@@ -483,11 +483,12 @@
   }
 
   /** 从后端 API 获取最近生成的汇编代码（只保留最新一条） */
+  let _recentAssemblyCodesNetworkErrorLogged = false;
   async function fetchRecentAssemblyCodes() {
     const base = ensureApiBase();
+    if (!base) return;
     try {
       const url = `${base}/api/recent-assembly-codes?limit=1`;  // 只获取最新1条
-      console.log('[Workflow] 请求最近汇编代码:', url);
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -496,8 +497,8 @@
         return;
       }
       
+      _recentAssemblyCodesNetworkErrorLogged = false; // 成功后重置，方便下次断线时再提示
       const data = await response.json();
-      console.log('[Workflow] API 返回数据:', data);
       
       if (data.error) {
         console.warn('[Workflow] API 返回错误:', data.error);
@@ -507,13 +508,17 @@
         genListEl.innerHTML = '';
         const latestCode = data.codes[0];
         const fileName = latestCode.name || '';
-        console.log('[Workflow] 显示最新代码:', fileName);
         appendItem(genListEl, fileName ? `LLM 生成用例 · ${fileName}` : 'LLM 生成用例', latestCode.key_code, true);
-      } else {
-        console.log('[Workflow] 暂无汇编代码');
       }
     } catch (error) {
-      console.error('[Workflow] 获取最近汇编代码异常:', error);
+      if (error.name === 'TypeError' && (error.message === 'Failed to fetch' || error.message.includes('fetch'))) {
+        if (!_recentAssemblyCodesNetworkErrorLogged) {
+          _recentAssemblyCodesNetworkErrorLogged = true;
+          console.warn('[Workflow] 无法连接服务端，请确认后端已启动且 API 地址正确（如 http://localhost:8080）');
+        }
+      } else {
+        console.error('[Workflow] 获取最近汇编代码异常:', error);
+      }
     }
   }
 

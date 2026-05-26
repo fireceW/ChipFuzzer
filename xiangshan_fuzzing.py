@@ -869,9 +869,10 @@ _start:
 class ModuleCoverageSession:
     """围绕一个 module 的完整测试会话（包含已有 good seeds + LLM 新生成）。"""
 
-    def __init__(self, module_name: str, config: PathConfig, Coverage_filename_origin, Coverage_filename_later, model, global_coverage_manager=None, use_spec=False):
+    def __init__(self, module_name: str, config: PathConfig, Coverage_filename_origin, Coverage_filename_later, model, global_coverage_manager=None, use_spec=False, use_llm_report=True):
         self.module_name = module_name
         self.config = config
+        self.use_llm_report = use_llm_report  # 是否使用 LLM 分析覆盖代码生成用例报告
         self.emulator = EmulatorRunner(config)
         self.subproc = SubprocessRunner()
         self.uncovered_repo = UncoveredCodeRepository(config, Coverage_filename_origin, Coverage_filename_later)
@@ -1228,10 +1229,25 @@ class ModuleCoverageSession:
                 except Exception as e:
                     print(f"⚠️ 保存统计数据时出错: {e}")
             
-            if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
-                result = callOpenAI_KJY(prompt, self.model)
-            else:
-                result = callOpenAI(prompt)
+            # LLM 调用：失败时重试 1 次，仍失败则跳过本 case，避免长时间卡死整轮
+            result = None
+            for llm_attempt in range(2):
+                try:
+                    if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
+                        result = callOpenAI_KJY(prompt, self.model)
+                    else:
+                        result = callOpenAI(prompt)
+                    break
+                except Exception as e:
+                    print(f"❌ LLM 调用失败 (尝试 {llm_attempt + 1}/2): {e}")
+                    if llm_attempt == 0:
+                        print(f"   将重试一次...")
+                    else:
+                        print(f"   跳过本 case，继续下一轮迭代（避免长时间卡死）")
+                        self.fail_num += 1
+                        compile_error_info = None
+            if result is None:
+                continue
             
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -1433,8 +1449,10 @@ class ModuleCoverageSession:
                                     coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                                     if coverage_info and "coverage_percentage" in coverage_info:
                                         current_coverage = coverage_info["coverage_percentage"]
+                                        if self.statistics["coverage_data"]:
+                                            last_pct = self.statistics["coverage_data"][-1].get("coverage_percentage", 0) or 0
+                                            current_coverage = max(current_coverage, last_pct)
                                         uncovered_count = self.global_coverage_manager.baseline_uncovered_count
-                                        
                                         self.statistics["coverage_data"].append({
                                             "timestamp": time.time(),
                                             "coverage_percentage": current_coverage,
@@ -1553,9 +1571,12 @@ class ModuleCoverageSession:
                 coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                 if coverage_info and "coverage_percentage" in coverage_info:
                     current_coverage = coverage_info["coverage_percentage"]
+                    # 保证单调不降：若因缓存/重启等出现比上一点低则用上一点，避免图表“先升后降”
+                    if self.statistics["coverage_data"]:
+                        last_pct = self.statistics["coverage_data"][-1].get("coverage_percentage", 0) or 0
+                        current_coverage = max(current_coverage, last_pct)
                     uncovered_count = self.global_coverage_manager.baseline_uncovered_count
                     
-                    # 记录覆盖率数据
                     self.statistics["coverage_data"].append({
                         "timestamp": time.time(),
                         "coverage_percentage": current_coverage,
@@ -1629,36 +1650,38 @@ class ModuleCoverageSession:
                     )
                     
                     print(f"🤖 正在调用 LLM 分析原因并生成改进代码...")
-                    if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
-                        analysis_result = callOpenAI_KJY(analysis_prompt, self.model)
-                    else:
-                        analysis_result = callOpenAI(analysis_prompt)
-                    
-                    # 保存分析结果用于下次参考
-                    analysis_dir = "/root/ChipFuzzer_cursor/analysis_log"
-                    os.makedirs(analysis_dir, exist_ok=True)
-                    analysis_path = os.path.join(
-                        analysis_dir,
-                        f"analysis_{self.module_name}_{int(time.time())}.txt"
-                    )
-                    with open(analysis_path, "w", encoding="utf-8") as f:
-                        f.write(f"模块: {self.module_name}\n")
-                        f.write(f"连续无覆盖次数: {consecutive_no_coverage}\n")
-                        f.write(f"目标代码:\n{uncovered_code_line[:500]}\n")
-                        f.write(f"LLM 分析:\n{analysis_result}\n")
-                    
-                    # 记录分析模式的交互
-                    self.agent_memory.record_interaction(
-                        uncovered_code=uncovered_code_line,
-                        prompt_type="analysis",
-                        asm_code=raw_asm_code,
-                        success=False,
-                        compile_success=True,
-                        coverage_improved=False,
-                        strategy=f"analysis_mode_iteration_{iteration_count}",
-                        feedback=str(analysis_result)[:500]
-                    )
-                    print(f"💾 分析结果已保存: {analysis_path}")
+                    try:
+                        if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
+                            analysis_result = callOpenAI_KJY(analysis_prompt, self.model)
+                        else:
+                            analysis_result = callOpenAI(analysis_prompt)
+                    except Exception as e:
+                        print(f"❌ LLM 分析调用失败: {e}，跳过分析，继续下一轮（避免卡死）")
+                        analysis_result = None
+                    if analysis_result is not None:
+                        # 保存分析结果用于下次参考
+                        analysis_dir = "/root/ChipFuzzer_cursor/analysis_log"
+                        os.makedirs(analysis_dir, exist_ok=True)
+                        analysis_path = os.path.join(
+                            analysis_dir,
+                            f"analysis_{self.module_name}_{int(time.time())}.txt"
+                        )
+                        with open(analysis_path, "w", encoding="utf-8") as f:
+                            f.write(f"模块: {self.module_name}\n")
+                            f.write(f"连续无覆盖次数: {consecutive_no_coverage}\n")
+                            f.write(f"目标代码:\n{uncovered_code_line[:500]}\n")
+                            f.write(f"LLM 分析:\n{analysis_result}\n")
+                        self.agent_memory.record_interaction(
+                            uncovered_code=uncovered_code_line,
+                            prompt_type="analysis",
+                            asm_code=raw_asm_code,
+                            success=False,
+                            compile_success=True,
+                            coverage_improved=False,
+                            strategy=f"analysis_mode_iteration_{iteration_count}",
+                            feedback=str(analysis_result)[:500]
+                        )
+                        print(f"💾 分析结果已保存: {analysis_path}")
         
         # 循环正常结束（无未覆盖代码）
         print(f"\n🎉 模块 [{self.module_name}] 测试完成！所有代码已覆盖！")
@@ -1716,16 +1739,17 @@ class ModuleCoverageSession:
                 shutil.copy(testcase_bin_path, os.path.join(GJ_SUCCESS_SEED_DIR, bin_file_name))
                 print(f"✅ BIN 文件已保存到 GJ_Success_Seed: {bin_file_name}")
             
-            # 生成并保存报告文件
-            self._generate_case_report(
-                case_name=asm_file_name.replace(".S", ""),
-                module_name=self.module_name,
-                global_improved=global_improved,
-                global_reduced=global_reduced,
-                global_newly_covered=global_newly_covered,
-                covered_lines=covered_lines,
-                output_dir=GJ_SUCCESS_SEED_DIR
-            )
+            # 生成并保存报告文件（仅当启用 --llm-report 时）
+            if self.use_llm_report:
+                self._generate_case_report(
+                    case_name=asm_file_name.replace(".S", ""),
+                    module_name=self.module_name,
+                    global_improved=global_improved,
+                    global_reduced=global_reduced,
+                    global_newly_covered=global_newly_covered,
+                    covered_lines=covered_lines,
+                    output_dir=GJ_SUCCESS_SEED_DIR
+                )
             
             # 2) 保存到 all_seed_dir
             with open(os.path.join(self.config.all_seed_dir, asm_file_name), 'w') as f:
@@ -1856,10 +1880,13 @@ class ModuleCoverageSession:
         """
         report_file = os.path.join(output_dir, f"{case_name}.txt")
         
-        # 分析实际覆盖的模块和功能
+        # 分析实际覆盖的模块和功能（仅在启用 --llm-report 时才会调用此函数）
         # 优先使用 global_newly_covered（全局新覆盖的代码），如果没有则使用 covered_lines
         lines_to_analyze = global_newly_covered if global_newly_covered else covered_lines
-        analysis = self._analyze_covered_modules(lines_to_analyze)
+        if lines_to_analyze:
+            analysis = self._analyze_covered_modules(lines_to_analyze)
+        else:
+            analysis = {"main_module": "未知", "module_distribution": {}, "main_function": "未知"}
         
         main_covered_module = analysis["main_module"]
         module_dist = analysis["module_distribution"]
@@ -1966,7 +1993,14 @@ def parse_arguments():
         type=str,
         default="CSR",
        # required=True,
-        help='target module'
+        help='目标/起始模块。开启 auto_switch 时表示从此模块开始验证；若指定了 --start-index 则以此序号为准'
+    )
+    parser.add_argument(
+        '--start-index',
+        type=int,
+        default=None,
+        metavar='N',
+        help='从第 N 个模块开始验证（1=第一个）。与 auto_switch 配合：执行时先取前 num 个模块列表，从第 N 个开始往后验证，前面跳过'
     )
     
     parser.add_argument(
@@ -2034,6 +2068,13 @@ def parse_arguments():
         help='运行已有的成功用例：在开始 LLM 生成之前，先运行 successed/<module>/ 目录下的已有成功用例（默认：fresh 模式运行，continue 模式跳过）'
     )
 
+    parser.add_argument(
+        '--llm-report',
+        action='store_true',
+        default=False,
+        help='启用 LLM 生成用例报告：成功用例保存时调用大模型分析覆盖代码并生成报告（默认不写报告）'
+    )
+
     return parser.parse_args()
 
 
@@ -2094,25 +2135,25 @@ def main():
         args.auto_switch = True
         print(f"ℹ️  自动切换模块模式：默认启用（如需禁用，请使用 --no-auto-switch）")
     
-    if args.module and args.module != "auto":
+    # 优先支持「起始序号」：只填数字 N，从第 N 个模块开始（避免前端拉百条下拉）
+    if getattr(args, 'start_index', None) is not None and args.start_index >= 1:
+        all_modules = getTopUncoveredModules(num, args.coverage_filename_origin)
+        start_idx = min(args.start_index - 1, len(all_modules))  # 1-based -> 0-based
+        module_list = all_modules[start_idx:]
+        print(f"🔄 从第 {args.start_index} 个模块开始验证，共 {len(module_list)} 个模块（前 {start_idx} 个已跳过）")
+    elif args.module and args.module != "auto":
         # 单模块模式
         if args.auto_switch:
-            # 如果开启了自动切换，先获取未覆盖代码最多的 num 个模块
-            # 然后找到当前模块在列表中的位置，从该位置开始测试
             all_modules = getTopUncoveredModules(num, args.coverage_filename_origin)
             if args.module in all_modules:
-                # 找到当前模块的位置，从该位置开始
                 start_idx = all_modules.index(args.module)
                 module_list = all_modules[start_idx:]
             else:
-                # 如果当前模块不在列表中，先测试当前模块，然后测试列表中的模块
                 module_list = [args.module] + all_modules
             print(f"🔄 自动切换模式：将从模块 {args.module} 开始，共 {len(module_list)} 个模块")
         else:
-            # 不开启自动切换，只测试指定模块
             module_list = [args.module]
     else:
-        # 自动选择模式：获取未覆盖代码最多的 num 个模块
         module_list = getTopUncoveredModules(num, args.coverage_filename_origin)
     
     # 每模块最大尝试次数
@@ -2125,6 +2166,7 @@ def main():
     print(f"   使用模型: {model}")
     print(f"   运行模式: {run_mode} ({'继续累积覆盖率' if run_mode == 'continue' else '创建新的覆盖率文件'})")
     print(f"   SPEC 文件分析: {'启用' if args.use_spec else '禁用'}")
+    print(f"   LLM 用例报告: {'启用' if args.llm_report else '不写报告（默认）'}")
     print(f"   全局 annotated 目录: {config.global_annotated_dir}")
     print(f"   累积覆盖率文件: {config.sum_dat_file}")
     print(f"=" * 60)
@@ -2272,7 +2314,8 @@ def main():
                 Coverage_filename_origin, Coverage_filename_later, 
                 model,
                 global_coverage_manager=global_coverage_manager,  # 共享同一个实例
-                use_spec=args.use_spec  # 从命令行参数获取
+                use_spec=args.use_spec,  # 从命令行参数获取
+                use_llm_report=args.llm_report  # 是否使用 LLM 写用例报告（默认否）
             )
             
             # 先跑已有的成功用例（这可能需要较长时间，特别是如果有多个用例）

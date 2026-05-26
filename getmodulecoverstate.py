@@ -102,6 +102,33 @@ def getTopUncoveredModules(num, Coverage_filename_origin_dir):
     return result
 
 
+def getTopUncoveredModulesWithCounts(num, Coverage_filename_origin_dir):
+    """
+    获取未覆盖代码最多的 num 个模块列表，并返回每个模块的未覆盖行数。
+    供 Web API 使用，便于前端展示「从第 N 个模块开始」。
+    返回: [(module_name, uncovered_count), ...]
+    """
+    import os
+    import glob
+    
+    sv_files = glob.glob(os.path.join(Coverage_filename_origin_dir, "*.sv"))
+    module_uncovered_counts = []
+    
+    for sv_file in sv_files:
+        module_name = os.path.basename(sv_file).replace(".sv", "")
+        try:
+            with open(sv_file, "r", encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            uncovered_count = content.count("%000000")
+            if uncovered_count > 0:
+                module_uncovered_counts.append((module_name, uncovered_count))
+        except Exception:
+            pass
+    
+    module_uncovered_counts.sort(key=lambda x: x[1], reverse=True)
+    return module_uncovered_counts[:num]
+
+
 def getTheMostUncoveredModule_debug(Coverage_filename_origin):
 
     filename = Coverage_filename_origin
