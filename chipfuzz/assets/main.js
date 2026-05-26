@@ -364,10 +364,10 @@
           const delta = currentCoverage - initialCoverageValue;
           if (delta > 0) {
             coverageDeltaEl.textContent = `+${delta.toFixed(3)}%`;
-            coverageDeltaEl.style.color = "#4ade80"; // 绿色
+            coverageDeltaEl.style.color = "var(--success, #34d399)"; // 绿色
           } else if (delta < 0) {
             coverageDeltaEl.textContent = `${delta.toFixed(3)}%`;
-            coverageDeltaEl.style.color = "#f87171"; // 红色
+            coverageDeltaEl.style.color = "var(--danger, #f87171)"; // 红色
           } else {
             coverageDeltaEl.textContent = "+0%";
             coverageDeltaEl.style.color = "#888"; // 灰色
@@ -422,8 +422,8 @@
         datasets: [{
           label: isBar ? "等待数据" : "覆盖率 (%)",
           data: isBar ? [0] : [],
-          backgroundColor: isBar ? 'rgba(169, 182, 218, 0.2)' : 'rgba(231, 76, 60, 0.1)',
-          borderColor: isBar ? 'rgba(169, 182, 218, 0.5)' : 'rgba(231, 76, 60, 0.5)',
+          backgroundColor: isBar ? 'rgba(34, 211, 238, 0.2)' : 'rgba(52, 211, 153, 0.15)',
+          borderColor: isBar ? 'rgba(34, 211, 238, 0.6)' : 'rgba(52, 211, 153, 0.6)',
           borderWidth: 1
         }]
       },
@@ -433,22 +433,22 @@
         scales: isBar ? {
           y: {
             beginAtZero: true,
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: 'rgba(169, 182, 218, 0.8)', font: { size: 10 } }
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
           },
           x: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: 'rgba(169, 182, 218, 0.8)', font: { size: 10 } }
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
           }
         } : {
           y: {
             beginAtZero: false,
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: 'rgba(169, 182, 218, 0.8)', font: { size: 10 } }
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
           },
           x: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: 'rgba(169, 182, 218, 0.8)', font: { size: 10 } }
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } }
           }
         },
         plugins: {
@@ -456,7 +456,7 @@
             display: true,
             position: 'top',
             labels: {
-              color: 'rgba(169, 182, 218, 0.9)',
+              color: 'rgba(230, 237, 243, 0.95)',
               font: { size: 10 },
               padding: 8,
               usePointStyle: true
@@ -501,11 +501,11 @@
           const rate = summary.compile_success_rate || 0;
           if (rate > 0) {
             compileSuccessRateEl.textContent = `${rate.toFixed(2)}%`;
-            compileSuccessRateEl.style.color = rate >= 80 ? "#4ade80" : rate >= 50 ? "#fbbf24" : "#f87171";
+            compileSuccessRateEl.style.color = rate >= 80 ? "var(--success, #34d399)" : rate >= 50 ? "var(--warning, #fbbf24)" : "var(--danger, #f87171)";
             console.log(`[统计] 编译成功率: ${rate.toFixed(2)}%`);
           } else {
             compileSuccessRateEl.textContent = "-";
-            compileSuccessRateEl.style.color = "#888";
+            compileSuccessRateEl.style.color = "var(--muted)";
             console.log('[统计] 编译成功率: 无数据');
           }
         }
@@ -518,7 +518,7 @@
           const rate = summary.emulator_success_rate || 0;
           if (rate > 0) {
             emulatorSuccessRateEl.textContent = `${rate.toFixed(2)}%`;
-            emulatorSuccessRateEl.style.color = rate >= 80 ? "#4ade80" : rate >= 50 ? "#fbbf24" : "#f87171";
+            emulatorSuccessRateEl.style.color = rate >= 80 ? "var(--success, #34d399)" : rate >= 50 ? "var(--warning, #fbbf24)" : "var(--danger, #f87171)";
             console.log(`[统计] 模拟器执行成功率: ${rate.toFixed(2)}%`);
           } else {
             emulatorSuccessRateEl.textContent = "-";
@@ -535,7 +535,7 @@
           const rate = summary.coverage_improved_rate ?? 0;
           if (rate > 0 || (summary.total_llm_generations || 0) > 0) {
             coverageImprovedRateEl.textContent = `${(rate || 0).toFixed(2)}%`;
-            coverageImprovedRateEl.style.color = rate >= 80 ? "#4ade80" : rate >= 50 ? "#fbbf24" : "#f87171";
+            coverageImprovedRateEl.style.color = rate >= 80 ? "var(--success, #34d399)" : rate >= 50 ? "var(--warning, #fbbf24)" : "var(--danger, #f87171)";
             console.log(`[统计] 占 LLM 生成比例: ${(rate || 0).toFixed(2)}%`);
           } else {
             coverageImprovedRateEl.textContent = "-";
@@ -620,15 +620,15 @@
             {
               label: 'LLM 生成次数',
               data: llmCounts,
-              backgroundColor: 'rgba(74, 144, 226, 0.6)',
-              borderColor: 'rgba(74, 144, 226, 1)',
+              backgroundColor: 'rgba(34, 211, 238, 0.5)',
+              borderColor: 'rgba(34, 211, 238, 0.9)',
               borderWidth: 1
             },
             {
               label: '模拟器成功执行次数',
               data: emulatorCounts,
-              backgroundColor: 'rgba(80, 200, 120, 0.6)',
-              borderColor: 'rgba(80, 200, 120, 1)',
+              backgroundColor: 'rgba(52, 211, 153, 0.5)',
+              borderColor: 'rgba(52, 211, 153, 0.9)',
               borderWidth: 1
             }
           ]
@@ -640,24 +640,18 @@
             y: {
               beginAtZero: true,
               grid: {
-                color: 'rgba(255, 255, 255, 0.05)'
+                color: 'rgba(255, 255, 255, 0.06)'
               },
               ticks: {
-                color: 'rgba(169, 182, 218, 0.8)',
-                font: {
-                  size: 10
-                }
+                color: 'rgba(180, 188, 200, 0.9)',
+                font: { size: 10 }
               }
             },
             x: {
-              grid: {
-                color: 'rgba(255, 255, 255, 0.05)'
-              },
+              grid: { color: 'rgba(255, 255, 255, 0.06)' },
               ticks: {
-                color: 'rgba(169, 182, 218, 0.8)',
-                font: {
-                  size: 10
-                },
+                color: 'rgba(180, 188, 200, 0.9)',
+                font: { size: 10 },
                 maxRotation: 45,
                 minRotation: 0
               }
@@ -668,10 +662,8 @@
               display: true,
               position: 'top',
               labels: {
-                color: 'rgba(169, 182, 218, 0.9)',
-                font: {
-                  size: 10
-                },
+                color: 'rgba(230, 237, 243, 0.95)',
+                font: { size: 10 },
                 padding: 8,
                 usePointStyle: true
               }
@@ -716,8 +708,8 @@
           datasets: [{
             label: '覆盖率 (%)',
             data: coveragePercentages,
-            borderColor: 'rgba(231, 76, 60, 1)',
-            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            borderColor: 'rgba(52, 211, 153, 0.9)',
+            backgroundColor: 'rgba(52, 211, 153, 0.12)',
             borderWidth: 2,
             fill: true,
             tension: 0.4
@@ -729,34 +721,19 @@
           scales: {
             y: {
               beginAtZero: false,
-              grid: {
-                color: 'rgba(255, 255, 255, 0.05)'
-              },
-              ticks: {
-                color: 'rgba(169, 182, 218, 0.8)',
-                font: {
-                  size: 10
-                }
-              },
-              title: {
-                display: false
-              }
+              grid: { color: 'rgba(255, 255, 255, 0.06)' },
+              ticks: { color: 'rgba(180, 188, 200, 0.9)', font: { size: 10 } },
+              title: { display: false }
             },
             x: {
-              grid: {
-                color: 'rgba(255, 255, 255, 0.05)'
-              },
+              grid: { color: 'rgba(255, 255, 255, 0.06)' },
               ticks: {
-                color: 'rgba(169, 182, 218, 0.8)',
-                font: {
-                  size: 10
-                },
+                color: 'rgba(180, 188, 200, 0.9)',
+                font: { size: 10 },
                 maxRotation: 45,
                 minRotation: 0
               },
-              title: {
-                display: false
-              }
+              title: { display: false }
             }
           },
           plugins: {
@@ -764,10 +741,8 @@
               display: true,
               position: 'top',
               labels: {
-                color: 'rgba(169, 182, 218, 0.9)',
-                font: {
-                  size: 10
-                },
+                color: 'rgba(230, 237, 243, 0.95)',
+                font: { size: 10 },
                 padding: 8,
                 usePointStyle: true
               }
