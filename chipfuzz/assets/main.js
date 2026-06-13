@@ -99,11 +99,11 @@
   const coveredLinesEl = document.getElementById("coveredLines");
   const successCasesEl = document.getElementById("successCases");
   
-  // 记录初始覆盖率
+  // Record initial coverage
   let initialCoverageValue = null;
   const recentCoverageEl = document.getElementById("recentCoverage");
 
-  // 统计相关元素
+  // Statistics related elements
   const llmGenerationCountEl = document.getElementById("llmGenerationCount");
   const compileSuccessRateEl = document.getElementById("compileSuccessRate");
   const emulatorSuccessCountEl = document.getElementById("emulatorSuccessCount");
@@ -111,7 +111,7 @@
   const coverageImprovedCountEl = document.getElementById("coverageImprovedCount");
   const coverageImprovedRateEl = document.getElementById("coverageImprovedRate");
   
-  // 调试：检查元素是否存在
+  // Debugging: Check if element exists
   console.log('[统计] DOM元素检查:', {
     llmGenerationCountEl: !!llmGenerationCountEl,
     compileSuccessRateEl: !!compileSuccessRateEl,
@@ -121,15 +121,15 @@
     coverageImprovedRateEl: !!coverageImprovedRateEl
   });
 
-  // 图表实例
+  // Chart example
   let statisticsChart = null;
   let coverageChart = null;
 
-  // 模型配置
+  // Model configuration
   const paramModelTypeEl = document.getElementById("paramModelType");
   const paramModelEl = document.getElementById("paramModel");
 
-  // 模型选项配置
+  // Model option configuration
   const modelOptions = {
     commercial: [
       { value: "gpt-5.1", label: "gpt-5.1" },
@@ -143,7 +143,7 @@
     ],
   };
 
-  // 更新模型选项
+  // Update model options
   const updateModelOptions = (type) => {
     if (!paramModelEl) return;
     const options = modelOptions[type] || modelOptions.commercial;
@@ -152,12 +152,12 @@
       .join("");
   };
 
-  // 监听模型类型变化
+  // Monitor model type changes
   if (paramModelTypeEl) {
     paramModelTypeEl.addEventListener("change", (e) => {
       updateModelOptions(e.target.value);
     });
-    // 初始化
+    // initialization
     updateModelOptions(paramModelTypeEl.value);
   }
 
@@ -179,57 +179,57 @@
     logOutEl.textContent += (logOutEl.textContent ? "\n" : "") + line;
     logOutEl.scrollTop = logOutEl.scrollHeight;
     
-    // 解析覆盖率数据
+    // Parse coverage data
     parseCoverageData(line);
   };
 
-  // 状态：是否正在收集覆盖代码行
+  // Status: Whether the coverage lines are being collected
   let collectingCoverageLines = false;
   let expectedCoverageCount = 0;
   let collectedCoverageCount = 0;
 
   const parseCoverageData = (line) => {
-    // 匹配: "本次测试覆盖了 X 行代码" (支持各种前缀如 emoji)
+    // Match: "This test covers X lines of code" (supports various prefixes such as emoji)
     const coveredMatch = line.match(/本次测试覆盖了\s*(\d+)\s*行代码/);
     if (coveredMatch && coveredLinesEl) {
       const count = parseInt(coveredMatch[1], 10);
       coveredLinesEl.textContent = count;
       
-      // 开始收集覆盖的代码行
+      // Start collecting covered lines of code
       collectingCoverageLines = true;
       expectedCoverageCount = count;
       collectedCoverageCount = 0;
     }
     
-    // 匹配: "新覆盖的代码行 (前 X 行):" - 来自全局覆盖率检查
+    // Matches: "Newly covered lines of code (first X lines):" - from global coverage check
     const newCoveredMatch = line.match(/新覆盖的代码行\s*\(前\s*(\d+)\s*行\)/);
     if (newCoveredMatch) {
       const count = parseInt(newCoveredMatch[1], 10);
-      // 开始收集覆盖的代码行
+      // Start collecting covered lines of code
       collectingCoverageLines = true;
       expectedCoverageCount = count;
       collectedCoverageCount = 0;
     }
 
-    // 匹配: "当前参考案例数: X" 或 "当前参考案例数：X"（支持中英文冒号）
-    // 与后端 good_seeds 数量一致，同时更新「运行模块参考案例」和「成功覆盖 case 数」
+    // Match: "Current number of reference cases: X" or "Current number of reference cases: X" (supports Chinese and English colons)
+    // The number of good_seeds in the backend is consistent, and the "Run module reference case" and "Number of successfully covered cases" are updated at the same time.
     const casesMatch = line.match(/当前参考案例数[：:]\s*(\d+)/);
     if (casesMatch) {
       const count = parseInt(casesMatch[1], 10);
       if (successCasesEl) successCasesEl.textContent = count;
       if (coverageImprovedCountEl) coverageImprovedCountEl.textContent = count;
-      // 若有 LLM 生成次数可算比例，此处不重复拉接口，比例仍由统计轮询更新
+      // If there are LLM generation times that can be calculated as a ratio, the interface will not be pulled repeatedly here, and the ratio will still be updated by statistical polling.
     }
 
-    // 只有在收集状态下才匹配覆盖的代码行
-    // 格式: "  1. %000000 xxx" 或 "   1. xxx"（实际代码行）
+    // Match covered lines of code only if in collection state
+    // Format: " 1. %000000 xxx" or " 1. xxx" (actual code line)
     if (collectingCoverageLines && recentCoverageEl) {
       const lineMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
       if (lineMatch) {
         const lineNum = parseInt(lineMatch[1], 10);
         let codeLine = lineMatch[2].trim();
         
-        // 处理 verilator 格式: "%000000  | code" -> 提取 code 部分
+        // Process verilator format: "%000000 | code" -> extract the code part
         if (codeLine.startsWith('%')) {
           const pipeIndex = codeLine.indexOf('|');
           if (pipeIndex > 0) {
@@ -237,35 +237,35 @@
           }
         }
         
-        // 只要有内容就显示（简化判断逻辑）
+        // Display as long as there is content (simplifying the judgment logic)
         if (codeLine.length >= 3) {
           collectedCoverageCount++;
           
-          // 移除"等待覆盖数据..."提示
+          // Removed "Waiting to overwrite data..." prompt
           const empty = recentCoverageEl.querySelector('.recent__empty');
           if (empty) empty.remove();
           
-          // 添加新的覆盖行（最多保留最近 30 条）
+          // Add new coverage lines (keeps up to the most recent 30)
           const item = document.createElement('div');
           item.className = 'recent__item';
           item.textContent = codeLine;
           item.title = `第 ${lineNum} 行: ${codeLine}`;
           recentCoverageEl.insertBefore(item, recentCoverageEl.firstChild);
           
-          // 限制数量
+          // limited quantity
           const items = recentCoverageEl.querySelectorAll('.recent__item');
           if (items.length > 30) {
             items[items.length - 1].remove();
           }
           
-          // 收集够了就停止
+          // Stop when you have collected enough
           if (collectedCoverageCount >= expectedCoverageCount) {
             collectingCoverageLines = false;
           }
         }
       }
       
-      // 遇到 "... 还有 X 行" 时停止收集
+      // Stop collection when encountering "... and X lines left"
       if (line.includes('还有') && line.includes('行')) {
         collectingCoverageLines = false;
       }
@@ -273,25 +273,25 @@
   };
   const clearLog = () => {
     if (logOutEl) logOutEl.textContent = "";
-    // 同时清空覆盖率数据
+    // Clear coverage data at the same time
     if (coveredLinesEl) coveredLinesEl.textContent = "0";
     if (successCasesEl) successCasesEl.textContent = "0";
     if (recentCoverageEl) {
       recentCoverageEl.innerHTML = '<div class="recent__empty">等待覆盖数据...</div>';
     }
-    // 重置收集状态
+    // Reset collection status
     collectingCoverageLines = false;
     expectedCoverageCount = 0;
     collectedCoverageCount = 0;
   };
 
-  // 获取总体覆盖率（从服务器文件读取）
+  // Get overall coverage (read from server file)
   let coverageFailCount = 0;
   const fetchTotalCoverage = async () => {
     const { base, token, runId } = getConfig();
     if (!base || !runId) return;
     
-    // 如果连续失败 3 次，暂停轮询
+    // If it fails 3 times in a row, polling is paused.
     if (coverageFailCount >= 3) {
       console.warn('总体覆盖率连续获取失败，已暂停轮询');
       stopCoveragePolling();
@@ -299,15 +299,15 @@
     }
     
     try {
-      // 调用 API 获取总体覆盖率数据
+      // Call the API to get overall coverage data
       const data = await fetchJson(`${base}/api/runs/${encodeURIComponent(runId)}/coverage`, token);
       
-      // 成功后重置失败计数
+      // Reset failure count after success
       coverageFailCount = 0;
       
-      // 处理无数据状态（fresh 模式或尚未生成覆盖率数据）
+      // Handling no-data status (fresh mode or coverage data not yet generated)
       if (data.status === "no_data" || data.status === "fresh_mode" || data.status === "fresh_mode_waiting") {
-        // 如果是 Fresh 模式，重置初始覆盖率值
+        // If it is Fresh mode, reset the initial coverage value
         if (data.status === "fresh_mode") {
           initialCoverageValue = null;
           console.log("🔄 Fresh 模式检测到，重置初始覆盖率值和基线");
@@ -319,14 +319,14 @@
           coverageDeltaEl.style.color = "#888";
         }
         if (totalLinesEl) totalLinesEl.textContent = "-";
-        // 不设置 initialCoverageValue，等真正获取到数据再记录
+        // Do not set initialCoverageValue and wait until the data is actually obtained before recording it.
         return;
       }
       
-      // 处理错误状态
+      // Handle error status
       if (data.status === "error" || data.status === "parse_error") {
         console.warn("覆盖率获取错误:", data.message || data.status);
-        // 如果是解析错误但没有历史数据，显示错误提示
+        // If there is a parsing error but there is no historical data, an error message will be displayed.
         if (data.status === "parse_error" && !data.coverage_percentage) {
           if (totalCoverageEl) totalCoverageEl.textContent = "解析失败";
           if (coverageDeltaEl) {
@@ -337,16 +337,16 @@
         return;
       }
       
-      // 处理解析错误但使用缓存的情况
+      // Handle parsing errors but use cache
       if (data.status === "parse_error_using_cache") {
         console.warn("覆盖率解析失败，使用缓存数据:", data.warning);
-        // 继续使用缓存的数据更新显示
+        // Continue to update the display with cached data
       }
       
       if (data.coverage_percentage !== undefined) {
         const currentCoverage = data.coverage_percentage;
         
-        // 记录初始覆盖率（只在第一次获取时记录）
+        // Record initial coverage (only recorded on first acquisition)
         if (initialCoverageValue === null) {
           initialCoverageValue = currentCoverage;
           if (initialCoverageEl) {
@@ -354,23 +354,23 @@
           }
         }
         
-        // 更新当前覆盖率
+        // Update current coverage
         if (totalCoverageEl) {
           totalCoverageEl.textContent = `${currentCoverage.toFixed(2)}%`;
         }
         
-        // 计算并显示增量
+        // Calculate and display delta
         if (coverageDeltaEl && initialCoverageValue !== null) {
           const delta = currentCoverage - initialCoverageValue;
           if (delta > 0) {
             coverageDeltaEl.textContent = `+${delta.toFixed(3)}%`;
-            coverageDeltaEl.style.color = "#4ade80"; // 绿色
+            coverageDeltaEl.style.color = "#4ade80"; // green
           } else if (delta < 0) {
             coverageDeltaEl.textContent = `${delta.toFixed(3)}%`;
-            coverageDeltaEl.style.color = "#f87171"; // 红色
+            coverageDeltaEl.style.color = "#f87171"; // red
           } else {
             coverageDeltaEl.textContent = "+0%";
-            coverageDeltaEl.style.color = "#888"; // 灰色
+            coverageDeltaEl.style.color = "#888"; // grey
           }
         }
       }
@@ -379,22 +379,22 @@
         totalLinesEl.textContent = data.total_covered_lines.toLocaleString();
       }
     } catch (err) {
-      // 408 超时或其他错误
+      // 408 timeout or other error
       coverageFailCount++;
       
-      // 静默失败，不影响其他功能
-      // 408 超时是正常现象（genhtml 可能需要较长时间），不显示错误
+      // Fails silently and does not affect other functions
+      // 408 timeout is normal (genhtml may take a long time) and no error is displayed.
       if (!err.message?.includes('408')) {
         console.warn('获取总体覆盖率失败:', err);
       }
     }
   };
 
-  // 定期获取总体覆盖率（每 2 分钟）
+  // Get overall coverage periodically (every 2 minutes)
   let coverageTimer = null;
   const startCoveragePolling = () => {
     if (coverageTimer) clearInterval(coverageTimer);
-    coverageFailCount = 0; // 重置失败计数
+    coverageFailCount = 0; // Reset failure count
     fetchTotalCoverage();
     coverageTimer = setInterval(fetchTotalCoverage, 120000);
   };
@@ -405,12 +405,12 @@
     }
   };
 
-  // 初始化空图表（显示占位信息）
+  // Initialize empty chart (display placeholder information)
   const initEmptyChart = (canvasId, chartType) => {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
 
-    // 如果图表已存在，不重复创建
+    // If the chart already exists, do not create it again
     if (canvasId === "statisticsChart" && statisticsChart) return;
     if (canvasId === "coverageChart" && coverageChart) return;
 
@@ -473,7 +473,7 @@
     }
   };
 
-  // 获取统计数据
+  // Get statistics
   const fetchStatistics = async () => {
     const { base, token, runId } = getConfig();
     if (!base || !runId) {
@@ -491,7 +491,7 @@
         
         console.log('[统计] 更新统计数据:', summary);
         
-        // 更新统计数字
+        // Update statistics
         if (llmGenerationCountEl) {
           const count = summary.total_llm_generations || 0;
           llmGenerationCountEl.textContent = count;
@@ -544,24 +544,24 @@
           }
         }
 
-        // 更新统计图表
+        // Update statistical chart
         if (data.modules && data.modules.length > 0) {
           updateStatisticsChart(data.modules);
         } else {
-          // 如果没有模块数据，初始化空图表
+          // If there is no module data, initialize an empty chart
           initEmptyChart("statisticsChart", "bar");
         }
         
-        // 更新覆盖率图表
+        // Update coverage chart
         if (data.coverage_data && data.coverage_data.length > 0) {
           updateCoverageChart(data.coverage_data);
         } else {
-          // 如果没有覆盖率数据，初始化空图表
+          // If there is no coverage data, initialize an empty chart
           initEmptyChart("coverageChart", "line");
         }
       } else if (data.status === "no_data") {
         console.log('[统计] 暂无统计数据（当前任务尚未写入或未匹配），保留日志中的实时值');
-        // 仅更新无“日志实时来源”的指标，不覆盖「运行模块参考案例」「成功覆盖 case 数」「占 LLM 生成比例」（由日志「当前参考案例数」等更新）
+        // Only indicators without "log real-time source" are updated, and do not cover "running module reference cases", "number of successfully covered cases", "proportion of LLM generation" (updated by the log "current number of reference cases", etc.)
         if (llmGenerationCountEl) llmGenerationCountEl.textContent = "0";
         if (compileSuccessRateEl) {
           compileSuccessRateEl.textContent = "-";
@@ -572,8 +572,8 @@
           emulatorSuccessRateEl.textContent = "-";
           emulatorSuccessRateEl.style.color = "#888";
         }
-        // 不覆盖 coverageImprovedCountEl / successCasesEl / coverageImprovedRateEl，保留日志「当前参考案例数」等已显示的值
-        // 初始化空图表
+        // Do not cover coverageImprovedCountEl / successCasesEl / coverageImprovedRateEl, retain the displayed values ​​​​such as the log "current number of reference cases"
+        // Initialize empty chart
         if (!statisticsChart) initEmptyChart("statisticsChart", "bar");
         if (!coverageChart) initEmptyChart("coverageChart", "line");
       } else {
@@ -581,19 +581,19 @@
       }
     } catch (err) {
       console.warn('[统计] 获取统计数据失败:', err);
-      // 出错时也初始化空图表，避免空白
+      // Also initialize empty charts when errors occur to avoid blank spaces
       if (!statisticsChart) initEmptyChart("statisticsChart", "bar");
       if (!coverageChart) initEmptyChart("coverageChart", "line");
     }
   };
 
-  // 更新统计图表
+  // Update statistical chart
   const updateStatisticsChart = (modules) => {
     const ctx = document.getElementById("statisticsChart");
     if (!ctx) return;
 
     if (!modules || modules.length === 0) {
-      // 如果没有数据，初始化空图表
+      // If there is no data, initialize an empty chart
       if (!statisticsChart) {
         initEmptyChart("statisticsChart", "bar");
       }
@@ -682,20 +682,20 @@
     }
   };
 
-  // 更新覆盖率图表
+  // Update coverage chart
   const updateCoverageChart = (coverageData) => {
     const ctx = document.getElementById("coverageChart");
     if (!ctx) return;
 
     if (!coverageData || coverageData.length === 0) {
-      // 如果没有数据，初始化空图表
+      // If there is no data, initialize an empty chart
       if (!coverageChart) {
         initEmptyChart("coverageChart", "line");
       }
       return;
     }
 
-    // 按时间排序
+    // Sort by time
     const sortedData = [...coverageData].sort((a, b) => a.timestamp - b.timestamp);
     
     const timestamps = sortedData.map(d => {
@@ -778,17 +778,17 @@
     }
   };
 
-  // 定期获取统计数据（每 10 秒，便于“成功覆盖 case 数”等及时更新）
+  // Obtain statistical data regularly (every 10 seconds to facilitate timely updating of "number of successfully covered cases" etc.)
   let statisticsTimer = null;
   const startStatisticsPolling = () => {
     if (statisticsTimer) clearInterval(statisticsTimer);
     console.log('[统计] 启动统计轮询');
-    // 立即初始化空图表，避免空白
+    // Initialize empty charts immediately to avoid blank spaces
     initEmptyChart("statisticsChart", "bar");
     initEmptyChart("coverageChart", "line");
-    // 立即获取一次数据
+    // Get data immediately
     fetchStatistics();
-    // 每10秒获取一次（原30秒，缩短以便成功覆盖 case 数及时更新）
+    // Obtained every 10 seconds (original 30 seconds, shortened so that the number of successfully covered cases can be updated in time)
     statisticsTimer = setInterval(() => {
       console.log('[统计] 定时获取统计数据...');
       fetchStatistics();
@@ -802,16 +802,16 @@
     }
   };
 
-  // 验证流程里出现「覆盖成功」时立即刷新统计，使「成功覆盖 case 数」及时更新
+  // When "coverage is successful" appears in the verification process, the statistics are immediately refreshed so that the "number of successfully covered cases" is updated in a timely manner.
   window.addEventListener('chipfuzz-refresh-statistics', () => {
     if (typeof fetchStatistics === 'function') fetchStatistics();
   });
 
-  // 获取总参考案例数（从 GJ_Success_Seed 目录统计）
-  // 只有在已连接任务时才获取
+  // Get the total number of reference cases (statistics from GJ_Success_Seed directory)
+  // Only obtained when the task is connected
   const fetchSuccessSeeds = async () => {
     const { base, token, runId } = getConfig();
-    if (!base || !runId) return;  // 需要有 runId 才获取
+    if (!base || !runId) return;  // Need to have runId to obtain
     
     try {
       const data = await fetchJson(`${base}/api/success-seeds`, token);
@@ -820,12 +820,12 @@
         totalSuccessSeedsEl.textContent = data.count;
       }
     } catch (err) {
-      // 静默失败
+      // Silently fails
       console.warn('获取总参考案例数失败:', err);
     }
   };
 
-  // 定期获取总参考案例数（每 30 秒）
+  // Get the total number of reference cases periodically (every 30 seconds)
   let successSeedsTimer = null;
   const startSuccessSeedsPolling = () => {
     if (successSeedsTimer) clearInterval(successSeedsTimer);
@@ -841,12 +841,12 @@
 
   const getConfig = () => {
     let base = (apiBaseEl?.value || "").trim().replace(/\/+$/, "");
-    // 如果 base 以 /api 结尾，移除它（避免双重路径）
-    // 支持多种格式：/api、/api/、/api/xxx 等
+    // If base ends with /api, remove it (avoid double paths)
+    // Supports multiple formats: /api, /api/, /api/xxx, etc.
     if (base.endsWith("/api")) {
       base = base.slice(0, -4);
     }
-    // 确保 base 不以 / 结尾
+    // Make sure base does not end with /
     base = base.replace(/\/+$/, "");
     const token = (apiTokenEl?.value || "").trim();
     const runId = (runIdEl?.value || "").trim();
@@ -878,7 +878,7 @@
   };
 
   const connectSSE = ({ base, token, runId }) => {
-    // EventSource 无法自定义 header；若需要鉴权，建议用 cookie 同域，或在 URL 带 token（不推荐）。
+    // EventSource cannot customize headers; if authentication is required, it is recommended to use cookies of the same domain, or add tokens to the URL (not recommended).
     const url = `${base}/api/runs/${encodeURIComponent(runId)}/stream`;
     setConnState("SSE 连接中…");
     setLogHint("正在连接 SSE…");
@@ -945,7 +945,7 @@
     setRunState("-");
     appendLog(`== 连接到 ${base}，runId=${runId} ==`);
 
-    // 重置初始覆盖率（连接新任务时重新记录）
+    // Reset initial coverage (relog when new tasks are connected)
     initialCoverageValue = null;
     if (initialCoverageEl) initialCoverageEl.textContent = "获取中...";
     if (totalCoverageEl) totalCoverageEl.textContent = "获取中...";
@@ -953,19 +953,19 @@
       coverageDeltaEl.textContent = "-";
       coverageDeltaEl.style.color = "#888";
     }
-    // 重置本次成功案例和覆盖代码行
+    // Reset this success story and overwrite the code line
     if (successCasesEl) successCasesEl.textContent = "0";
     if (recentCoverageEl) {
       recentCoverageEl.innerHTML = '<div class="recent__empty">等待覆盖数据...</div>';
     }
 
-    // 启动轮询
+    // Start polling
     startCoveragePolling();
     startSuccessSeedsPolling();
     startStatisticsPolling();
     startL2Polling();
 
-    // 默认使用轮询模式（更稳定、更通用）
+    // Use polling mode by default (more stable and versatile)
     setLogHint("使用轮询模式获取日志");
     connectPolling({ base, token, runId });
   };
@@ -978,23 +978,23 @@
         return;
       }
       
-      // 获取任务参数
+      // Get task parameters
       const params = {
         module: document.getElementById("paramModule")?.value || "Bku",
         model: document.getElementById("paramModel")?.value || "qwen3:235b",
         mode: document.getElementById("paramMode")?.value || "continue",
         max_iterations: parseInt(document.getElementById("paramMaxIterations")?.value) || 13,
         num: parseInt(document.getElementById("paramNum")?.value) || 100,
-        auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true, // 默认true（checkbox默认checked）
+        auto_switch: document.getElementById("paramAutoSwitch")?.checked ?? true, // Default true (checkbox is checked by default)
         use_spec: document.getElementById("paramUseSpec")?.checked || false,
         run_existing_seeds: document.getElementById("paramRunExistingSeeds")?.checked || false,
-        // 使用默认路径，不再从前端获取
+        // Use the default path and no longer get it from the front end
         coverage_filename_origin: "/root/XiangShan/logs/annotated/",
         coverage_filename_later: "/root/XiangShan/logs2/annotated/",
         global_annotated_dir: "/root/XiangShan/logs_global/annotated",
       };
       
-      // 确认 fresh 模式
+      // Confirm fresh mode
       if (params.mode === "fresh") {
         const confirmed = confirm("Fresh 模式会重置覆盖率文件（旧文件会备份），确定继续吗？");
         if (!confirmed) return;
@@ -1016,7 +1016,7 @@
         if (runIdEl) runIdEl.value = data.runId;
         setLogHint('任务已启动，可点击"连接日志流"查看实时输出');
         
-        // 重置初始覆盖率（新任务开始时重新记录）
+        // Reset initial coverage (re-record when new task starts)
         initialCoverageValue = null;
         if (initialCoverageEl) initialCoverageEl.textContent = "等待数据...";
         if (totalCoverageEl) totalCoverageEl.textContent = "等待数据...";
@@ -1024,9 +1024,9 @@
           coverageDeltaEl.textContent = "-";
           coverageDeltaEl.style.color = "#888";
         }
-        // 重置本次成功案例
+        // Reset this success story
         if (successCasesEl) successCasesEl.textContent = "0";
-        // 重置最近覆盖的代码行
+        // Reset recently overridden lines of code
         if (recentCoverageEl) {
           recentCoverageEl.innerHTML = '<div class="recent__empty">等待覆盖数据...</div>';
         }
@@ -1093,7 +1093,7 @@
     });
   }
 
-  // L2 模块组覆盖率
+  // L2 module group coverage
   const l2TotalCoverageEl = document.getElementById("l2TotalCoverage");
   const l2CoveredLinesEl = document.getElementById("l2CoveredLines");
   const l2UncoveredLinesEl = document.getElementById("l2UncoveredLines");
@@ -1113,7 +1113,7 @@
       const data = await fetchJson(`${base}/api/l2-coverage`, token);
       console.log("[L2] 响应数据:", data);
       
-      // 更新汇总数据
+      // Update summary data
       if (l2TotalCoverageEl && data.summary) {
         l2TotalCoverageEl.textContent = `${data.summary.coverage_rate}%`;
       }
@@ -1124,7 +1124,7 @@
         l2UncoveredLinesEl.textContent = data.summary.uncovered_lines;
       }
       
-      // 更新模块列表
+      // Update module list
       if (l2ModulesListEl && data.modules) {
         l2ModulesListEl.innerHTML = "";
         
@@ -1186,7 +1186,7 @@
     console.warn("[L2] btnRefreshL2 元素不存在！");
   }
 
-  // 定期刷新 L2 覆盖率（每 60 秒）
+  // Periodically refresh L2 coverage (every 60 seconds)
   let l2Timer = null;
   const startL2Polling = () => {
     console.log("[L2] startL2Polling 被调用");

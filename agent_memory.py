@@ -1,13 +1,13 @@
 """
-Agent Memory 管理系统
-用于维护 LLM 生成测试用例时的上下文和历史经验，提高生成准确性
+Agent Memory Management System
+Used to maintain context and historical experience when LLM generates test cases and improve generation accuracy
 
-功能：
-1. 对话历史管理：记录每次 LLM 交互的完整上下文
-2. 成功/失败模式记忆：学习哪些策略有效，哪些无效
-3. 代码模式学习：识别有效的代码模式和指令序列
-4. 错误模式库：记录常见错误及解决方案
-5. 覆盖率提升策略记忆：记录哪些方法成功提升了覆盖率
+Function:
+1. Conversation History Management: Record the complete context of each LLM interaction
+2. Success/Failure Pattern Memorization: Learning which strategies work and which don’t
+3. Code pattern learning: Identify effective code patterns and instruction sequences
+4. Error pattern library: records common errors and solutions
+5. Coverage improvement strategy memory: record which methods successfully improved coverage
 """
 
 import os
@@ -21,41 +21,41 @@ from datetime import datetime
 
 @dataclass
 class MemoryEntry:
-    """单个记忆条目"""
+    """single memory entry"""
     timestamp: float
     module_name: str
-    uncovered_code_hash: str  # 未覆盖代码的哈希，用于匹配相似代码
+    uncovered_code_hash: str  # Hash of uncovered code, used to match similar code
     prompt_type: str  # "generate", "fix", "analysis"
     success: bool
     coverage_improved: bool
     compile_success: bool
     asm_code: str
     error_message: Optional[str] = None
-    coverage_lines: List[str] = None  # 本次覆盖的代码行
-    strategy: str = ""  # 使用的策略描述
-    feedback: str = ""  # LLM 反馈或分析结果
+    coverage_lines: List[str] = None  # Lines of code covered this time
+    strategy: str = ""  # Description of the strategy used
+    feedback: str = ""  # LLM feedback or analysis results
 
 
 @dataclass
 class PatternMemory:
-    """代码模式记忆"""
+    """code pattern memory"""
     pattern_hash: str
     pattern_type: str  # "instruction_sequence", "register_usage", "value_pattern"
     success_count: int
     failure_count: int
-    examples: List[str]  # 成功的代码示例
+    examples: List[str]  # Successful code examples
     last_used: float
 
 
 class AgentMemory:
     """
-    Agent 记忆管理器
+    Agent memory manager
     
-    维护以下类型的记忆：
-    1. 对话历史：每次 LLM 交互的完整记录
-    2. 成功模式：有效的代码模式和策略
-    3. 失败模式：无效的策略和常见错误
-    4. 代码相似性：基于代码哈希的相似代码匹配
+    Maintains the following types of memory:
+    1. Conversation History: A complete record of every LLM interaction
+    2. Success Patterns: Effective Coding Patterns and Strategies
+    3. Failure Modes: Ineffective Strategies and Common Mistakes
+    4. Code similarity: similar code matching based on code hashing
     """
     
     def __init__(self, module_name: str, memory_dir: str = "/root/ChipFuzzer_cursor/agent_memory"):
@@ -63,20 +63,20 @@ class AgentMemory:
         self.memory_dir = memory_dir
         os.makedirs(memory_dir, exist_ok=True)
         
-        # 内存中的记忆
+        # memory in memory
         self.history: List[MemoryEntry] = []
         self.patterns: Dict[str, PatternMemory] = {}
-        self.error_patterns: Dict[str, int] = {}  # 错误类型 -> 出现次数
+        self.error_patterns: Dict[str, int] = {}  # Error type -> number of occurrences
         
-        # 加载持久化的记忆
+        # Load persistent memory
         self._load_memory()
     
     def _get_memory_file(self) -> str:
-        """获取该模块的记忆文件路径"""
+        """Get the memory file path of this module"""
         return os.path.join(self.memory_dir, f"{self.module_name}_memory.json")
     
     def _load_memory(self):
-        """从文件加载记忆"""
+        """Load memory from file"""
         memory_file = self._get_memory_file()
         if not os.path.exists(memory_file):
             return
@@ -85,17 +85,17 @@ class AgentMemory:
             with open(memory_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 
-            # 加载历史记录
+            # Load history
             self.history = [
                 MemoryEntry(**entry) for entry in data.get('history', [])
             ]
             
-            # 加载模式记忆
+            # load mode memory
             patterns_data = data.get('patterns', {})
             for key, pattern_data in patterns_data.items():
                 self.patterns[key] = PatternMemory(**pattern_data)
             
-            # 加载错误模式
+            # Loading error mode
             self.error_patterns = data.get('error_patterns', {})
             
             print(f"📚 已加载 {len(self.history)} 条历史记录，{len(self.patterns)} 个代码模式")
@@ -106,11 +106,11 @@ class AgentMemory:
             self.error_patterns = {}
     
     def _save_memory(self):
-        """保存记忆到文件"""
+        """Save memory to file"""
         memory_file = self._get_memory_file()
         try:
             data = {
-                'history': [asdict(entry) for entry in self.history[-100:]],  # 只保存最近100条
+                'history': [asdict(entry) for entry in self.history[-100:]],  # Only save the latest 100 items
                 'patterns': {k: asdict(v) for k, v in self.patterns.items()},
                 'error_patterns': self.error_patterns,
                 'last_updated': time.time()
@@ -122,8 +122,8 @@ class AgentMemory:
             print(f"⚠️ 保存记忆失败: {e}")
     
     def _hash_code(self, code: str) -> str:
-        """生成代码的哈希值，用于相似性匹配"""
-        # 移除空白和注释，只保留关键结构
+        """Generate a hash of the code for similarity matching"""
+        # Remove whitespace and comments, leaving only key structures
         lines = [line.strip() for line in code.split('\n') 
                  if line.strip() and not line.strip().startswith('#')]
         normalized = '\n'.join(lines)
@@ -143,19 +143,19 @@ class AgentMemory:
         feedback: str = ""
     ):
         """
-        记录一次 LLM 交互
+        Record an LLM interaction
         
-        参数:
-            uncovered_code: 目标未覆盖代码
+        parameter:
+            uncovered_code: target uncovered code
             prompt_type: "generate", "fix", "analysis"
-            asm_code: 生成的汇编代码
-            success: 是否成功（编译+执行+覆盖）
-            compile_success: 是否编译成功
-            coverage_improved: 是否提升了覆盖率
-            error_message: 错误信息（如果有）
-            coverage_lines: 覆盖的代码行列表
-            strategy: 使用的策略
-            feedback: LLM 反馈
+            asm_code: generated assembly code
+            success: whether it is successful (compile + execution + coverage)
+            compile_success: Whether the compilation was successful
+            coverage_improved: Whether coverage has been improved
+            error_message: error message (if any)
+            coverage_lines: List of lines of code covered
+            strategy: the strategy used
+            feedback: LLM feedback
         """
         code_hash = self._hash_code(uncovered_code)
         
@@ -167,7 +167,7 @@ class AgentMemory:
             success=success,
             coverage_improved=coverage_improved,
             compile_success=compile_success,
-            asm_code=asm_code[:2000],  # 限制长度
+            asm_code=asm_code[:2000],  # Limit length
             error_message=error_message[:500] if error_message else None,
             coverage_lines=coverage_lines or [],
             strategy=strategy,
@@ -176,21 +176,21 @@ class AgentMemory:
         
         self.history.append(entry)
         
-        # 记录错误模式
+        # Logging error patterns
         if error_message:
             error_type = self._classify_error(error_message)
             self.error_patterns[error_type] = self.error_patterns.get(error_type, 0) + 1
         
-        # 如果成功，提取代码模式
+        # If successful, extract the code pattern
         if success and coverage_improved:
             self._extract_patterns(asm_code, uncovered_code)
         
-        # 定期保存（每10条记录保存一次）
+        # Save regularly (save every 10 records)
         if len(self.history) % 10 == 0:
             self._save_memory()
     
     def _classify_error(self, error_message: str) -> str:
-        """分类错误类型"""
+        """Classification error type"""
         error_lower = error_message.lower()
         
         if 'illegal operands' in error_lower or 'register' in error_lower:
@@ -205,12 +205,12 @@ class AgentMemory:
             return "other_error"
     
     def _extract_patterns(self, asm_code: str, uncovered_code: str):
-        """从成功的代码中提取模式"""
-        # 提取指令序列模式
+        """Extract patterns from successful code"""
+        # Extract instruction sequence pattern
         lines = [line.strip() for line in asm_code.split('\n') 
                  if line.strip() and not line.strip().startswith('#')]
         
-        # 提取常见的指令序列（3-5条指令的组合）
+        # Extract common instruction sequences (combinations of 3-5 instructions)
         for i in range(len(lines) - 2):
             sequence = '\n'.join(lines[i:i+3])
             pattern_hash = hashlib.md5(sequence.encode()).hexdigest()[:12]
@@ -238,32 +238,32 @@ class AgentMemory:
         max_memories: int = 5
     ) -> Tuple[List[MemoryEntry], List[PatternMemory]]:
         """
-        根据当前未覆盖代码，检索相关的历史记忆
+        Retrieve relevant historical memory based on the currently uncovered code
         
-        返回:
-            (相关历史记录, 相关代码模式)
+        return:
+            (related history, related code patterns)
         """
         code_hash = self._hash_code(uncovered_code)
         
-        # 1. 查找相同或相似的代码哈希
+        # 1. Find identical or similar code hashes
         similar_entries = [
             entry for entry in self.history
             if entry.uncovered_code_hash == code_hash
         ]
         
-        # 2. 查找成功的案例（优先）
+        # 2. Find successful cases (priority)
         successful_entries = [
             entry for entry in self.history
             if entry.success and entry.coverage_improved
         ]
         
-        # 3. 查找最近的失败案例（避免重复错误）
+        # 3. Find recent failure cases (avoid repeating mistakes)
         recent_failures = [
-            entry for entry in self.history[-20:]  # 最近20条
+            entry for entry in self.history[-20:]  # Last 20 items
             if not entry.success
         ]
         
-        # 合并并排序：相似代码 > 成功案例 > 失败案例
+        # Merge and sort: similar code > success stories > failure stories
         relevant_entries = []
         seen_hashes = set()
         
@@ -275,7 +275,7 @@ class AgentMemory:
                 if len(relevant_entries) >= max_memories:
                     break
         
-        # 4. 获取成功率高的代码模式
+        # 4. Obtain code patterns with high success rate
         successful_patterns = [
             pattern for pattern in self.patterns.values()
             if pattern.success_count > pattern.failure_count
@@ -285,7 +285,7 @@ class AgentMemory:
         return relevant_entries[:max_memories], successful_patterns[:3]
     
     def get_error_summary(self) -> str:
-        """获取错误模式总结"""
+        """Get error pattern summary"""
         if not self.error_patterns:
             return ""
         
@@ -295,14 +295,14 @@ class AgentMemory:
             reverse=True
         )
         
-        summary = "## 常见错误模式（避免重复）：\n"
+        summary = "# Common error patterns (avoid duplication):\n"
         for error_type, count in sorted_errors[:5]:
             summary += f"- {error_type}: 出现 {count} 次\n"
         
         return summary
     
     def get_success_strategies(self) -> str:
-        """获取成功的策略总结"""
+        """Summary of Strategies for Success"""
         successful_entries = [
             entry for entry in self.history
             if entry.success and entry.coverage_improved and entry.strategy
@@ -311,14 +311,14 @@ class AgentMemory:
         if not successful_entries:
             return ""
         
-        # 统计策略频率
+        # Statistical strategy frequency
         strategy_counts = {}
         for entry in successful_entries:
             strategy_counts[entry.strategy] = strategy_counts.get(entry.strategy, 0) + 1
         
         sorted_strategies = sorted(strategy_counts.items(), key=lambda x: x[1], reverse=True)
         
-        summary = "## 成功的策略（优先使用）：\n"
+        summary = "# Successful strategies (preferred):\n"
         for strategy, count in sorted_strategies[:5]:
             summary += f"- {strategy}: 成功 {count} 次\n"
         
@@ -326,54 +326,54 @@ class AgentMemory:
     
     def get_context_summary(self, uncovered_code: str) -> str:
         """
-        生成上下文总结，用于增强 prompt
+        Generate contextual summaries to enhance prompts
         
-        返回格式化的字符串，包含：
-        1. 相关历史案例
-        2. 成功的代码模式
-        3. 常见错误提醒
-        4. 成功策略建议
+        Returns a formatted string containing:
+        1. Relevant historical cases
+        2. Successful code patterns
+        3. Common error reminders
+        4. Suggestions for successful strategies
         """
         relevant_entries, successful_patterns = self.get_relevant_memories(uncovered_code)
         
         summary_parts = []
         
-        # 1. 成功案例
+        # 1. Successful cases
         successful_entries = [e for e in relevant_entries if e.success and e.coverage_improved]
         if successful_entries:
-            summary_parts.append("## 📚 相关成功案例：")
+            summary_parts.append("# 📚Related success stories:")
             for i, entry in enumerate(successful_entries[:3], 1):
-                summary_parts.append(f"\n### 案例 {i}（{entry.strategy or '未知策略'}）:")
+                summary_parts.append(f"\n# # Case {i} ({entry.strategy or 'unknown strategy'}):")
                 summary_parts.append(f"```assembly\n{entry.asm_code[:300]}\n```")
                 if entry.coverage_lines:
                     summary_parts.append(f"覆盖了 {len(entry.coverage_lines)} 行代码")
         
-        # 2. 失败案例（避免重复）
+        # 2. Failure cases (avoid duplication)
         failed_entries = [e for e in relevant_entries if not e.success]
         if failed_entries:
-            summary_parts.append("\n## ⚠️ 相关失败案例（避免重复）：")
+            summary_parts.append("\n# ⚠️ Related failure cases (to avoid duplication): ")
             for i, entry in enumerate(failed_entries[:2], 1):
                 if entry.error_message:
                     error_type = self._classify_error(entry.error_message)
-                    summary_parts.append(f"\n### 失败案例 {i}:")
+                    summary_parts.append(f"\n# # Failure case {i}:")
                     summary_parts.append(f"- 错误类型: {error_type}")
                     summary_parts.append(f"- 错误信息: {entry.error_message[:200]}")
         
-        # 3. 成功的代码模式
+        # 3. Successful coding patterns
         if successful_patterns:
-            summary_parts.append("\n## ✅ 有效的代码模式：")
+            summary_parts.append("\n# ✅ Valid code patterns: ")
             for i, pattern in enumerate(successful_patterns[:2], 1):
                 success_rate = pattern.success_count / (pattern.success_count + pattern.failure_count + 1)
-                summary_parts.append(f"\n### 模式 {i}（成功率: {success_rate:.1%}）:")
+                summary_parts.append(f"\n# # Mode {i} (success rate: {success_rate:.1%}):")
                 if pattern.examples:
                     summary_parts.append(f"```assembly\n{pattern.examples[0][:200]}\n```")
         
-        # 4. 错误总结
+        # 4. Summary of errors
         error_summary = self.get_error_summary()
         if error_summary:
             summary_parts.append(f"\n{error_summary}")
         
-        # 5. 策略建议
+        # 5. Strategic suggestions
         strategy_summary = self.get_success_strategies()
         if strategy_summary:
             summary_parts.append(f"\n{strategy_summary}")
@@ -381,17 +381,17 @@ class AgentMemory:
         return "\n".join(summary_parts)
     
     def finalize(self):
-        """完成时保存所有记忆"""
+        """Save all memories when finished"""
         self._save_memory()
         print(f"💾 已保存 {len(self.history)} 条记忆到 {self._get_memory_file()}")
 
 
-# 全局记忆管理器（可选，用于跨模块共享）
+# Global memory manager (optional, for sharing across modules)
 _global_memory_cache = {}
 
 
 def get_agent_memory(module_name: str) -> AgentMemory:
-    """获取或创建模块的记忆管理器"""
+    """Gets or creates the module's memory manager"""
     if module_name not in _global_memory_cache:
         _global_memory_cache[module_name] = AgentMemory(module_name)
     return _global_memory_cache[module_name]

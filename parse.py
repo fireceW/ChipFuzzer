@@ -3,13 +3,13 @@ import re
 
 def parse_from_llm_output(text):
     """
-    从 LLM 输出中提取 ```assembly ... ``` 代码块并解析。
+    Extract ```assembly ... ``` code blocks from the LLM output and parse them.
 
-    支持两种输入形式：
-    1) text 是完整的 LLM 输出字符串
-    2) text 是一个文件路径（会从文件中读取内容再解析）
+    Two input forms are supported:
+    1) text is the complete LLM output string
+    2) text is a file path (the content will be read from the file and then parsed)
     """
-    # 如果 text 是一个存在的文件路径，则先从文件中读入内容
+    # If text is an existing file path, read the content from the file first
     if isinstance(text, str) and os.path.isfile(text):
         try:
             print(f"[parse_from_llm_output] 从文件读取 LLM 输出: {text}")
@@ -21,19 +21,19 @@ def parse_from_llm_output(text):
 
     code_match = re.search(r"```assembly\s*\n(.*?)\n```", text, re.DOTALL)
     
-    # 如果没找到，尝试匹配单引号格式 '''assembly ... '''
+    # If not found, try to match the single quote format '''assembly ... '''
     if not code_match:
         code_match = re.search(r"'''assembly\s*\n(.*?)\n'''", text, re.DOTALL)
     if not code_match:
         print("⚠️ 未在文本中找到 ```assembly 代码块")
         return False
     
-    # 提取代码块内容
+    # Extract code block content
     assembly_code = code_match.group(1)
     print("✅ 成功提取汇编代码：")
     print(assembly_code)
     return assembly_code
 
-# 测试
+# test
 path = " /root/ChipFuzzer/llm_result_fpsqrt_vector_r16_1764137261.txt"
 result = parse_from_llm_output(path)

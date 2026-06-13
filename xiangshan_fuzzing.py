@@ -29,21 +29,21 @@ from datetime import datetime
 
 
 # =========================
-# 基础工具 / 配置
+# Basic tools/configuration
 # =========================
 
 @dataclass
 class PathConfig:
-    """路径配置，后面用这个对象统一管理路径。"""
+    """Path configuration, this object will be used later to manage paths uniformly."""
     project_root: str = "/root/XiangShan/"
     testcase_dir: str = "/root/XiangShan/testcase"
     success_root: str = "/root/XiangShan/successed"
     all_seed_dir: str = "/root/XiangShan/all_seed"
     uncovered_code_file: str = "uncovered_code.json"
     annotated_logs_dir: str = "/root/XiangShan/logs/annotated"
-    # 全局覆盖率统计使用的 annotated 目录
+    # annotated directory used by global coverage statistics
     global_annotated_dir: str = "/root/XiangShan/logs_global/annotated"
-    # 累积覆盖率文件
+    # cumulative coverage file
     sum_dat_file: str = "/root/XiangShan/sum_gj.dat"
 
     @property
@@ -54,40 +54,40 @@ class PathConfig:
     def emulator_cmd_prefix(self) -> str:
 
         #return "./build/emu -b 0 -e 0 --diff ./ready-to-run/riscv64-nemu-interpreter-so --dump-coverage -i "
-        os.environ['NEMU_HOME'] = '/root/XiangShan/xs-env/NEMU/' 
+        os.environ['NEMU_HOME'] = '/root/XiangShan/xs-env/NEMU/'
         #return "./build/emu -b 0 -e 0  --dump-coverage -i "
         return "./build/emu -b 0 -e 0 --diff ./ready-to-run/riscv64-nemu-interpreter-so --dump-coverage -i "
 
     @property
     def coverage_cmd_prefix(self) -> str:
-        # 原来是: verilator_coverage -annotate logs/annotated/ <dat_file>
+        # It turns out to be: verilator_coverage -annotate logs/annotated/ <dat_file>
         return "verilator_coverage -annotate logs2/annotated/ "
 
 
 class EmulatorRunner:
-    """负责调用模拟器，返回 coverage.dat 的路径。"""
+    """Responsible for calling the simulator and returning the path of coverage.dat."""
 
     def __init__(self, config: PathConfig):
         self.config = config
 
     def run_elf(self, elf_relative_path: str):
         """
-        elf_relative_path 例子：
+        elf_relative_path example:
           - 'successed/<module>/<xxx>.elf'
           - 'testcase/<xxx>.elf'
         """
         exec_cmd = self.config.emulator_cmd_prefix + elf_relative_path
         return self._execute_emulator_fast(self.config.emulator_exec_dir, exec_cmd)
-    
+
     @staticmethod
     def _execute_emulator_fast(directory, exec_cmd):
         """
-        在指定目录执行模拟器命令，返回 coverage 文件名和执行是否成功。
-        
-        所有命令和输出都会被完整记录。
+        Execute the simulator command in the specified directory and return the coverage file name and whether the execution is successful.
+
+        All commands and output are fully logged.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         print(f"\n{'='*60}")
         print(f"🚀 [{timestamp}] 启动香山模拟器")
         print(f"{'='*60}")
@@ -96,11 +96,11 @@ class EmulatorRunner:
         print(f"💻 命令类型: shell=True")
         print(f"-" * 60)
         print(f"📌 [阶段] 仿真运行中（可能需数秒至数分钟，请勿中断）...")
-        
-        # 缩短超时时间到 30 分钟（1800 秒），避免长时间卡死
-        # 如果测试用例需要更长时间，可以考虑增加，但通常 30 分钟足够
-        timeout_seconds = 1800  # 30 分钟
-        
+
+        # Shorten the timeout to 30 minutes (1800 seconds) to avoid long-term stucks
+        # Consider increasing if the test case takes longer, but usually 30 minutes is enough
+        timeout_seconds = 1800  # 30 minutes
+
         try:
             start_time = time.time()
             process = subprocess.Popen(
@@ -112,16 +112,16 @@ class EmulatorRunner:
                 text=True,
                 bufsize=1
             )
-            
-            # 使用更可靠的超时机制：定期检查进程状态
+
+            # Use a more reliable timeout mechanism: check process status periodically
             import threading
             import queue
             output_queue = queue.Queue()
             process_finished = threading.Event()
             timeout_occurred = threading.Event()
-            
+
             def read_output():
-                """在后台线程中读取输出"""
+                """Read output in background thread"""
                 try:
                     total_lines = []
                     while True:
@@ -134,74 +134,74 @@ class EmulatorRunner:
                     output_queue.put(f"读取输出时出错: {e}")
                 finally:
                     process_finished.set()
-            
+
             def timeout_killer():
-                """超时后强制终止进程"""
+                """Forcefully terminate the process after timeout"""
                 time.sleep(timeout_seconds)
                 if not process_finished.is_set():
                     timeout_occurred.set()
                     print(f"\n⏰ 模拟器执行超时 (超过 {timeout_seconds // 60} 分钟)，强制终止进程...")
                     try:
-                        # 先尝试优雅终止
+                        # Try to terminate gracefully first
                         process.terminate()
-                        time.sleep(5)  # 等待 5 秒
+                        time.sleep(5)  # wait 5 seconds
                         if process.poll() is None:
-                            # 如果还在运行，强制杀死
+                            # If it is still running, force kill
                             print(f"   进程未响应，强制杀死...")
                             process.kill()
                     except Exception as e:
                         print(f"   终止进程时出错: {e}")
-            
-            # 启动输出读取线程
+
+            # Start the output reading thread
             output_thread = threading.Thread(target=read_output, daemon=True)
             output_thread.start()
-            
-            # 启动超时监控线程
+
+            # Start timeout monitoring thread
             timeout_thread = threading.Thread(target=timeout_killer, daemon=True)
             timeout_thread.start()
-            
-            # 添加进度监控：每 5 分钟输出一次等待信息
+
+            # Add progress monitoring: output waiting information every 5 minutes
             def progress_monitor():
                 elapsed = 0
                 while not process_finished.is_set() and not timeout_occurred.is_set():
-                    time.sleep(60)  # 每 60 秒检查一次
+                    time.sleep(60)  # Check every 60 seconds
                     if process_finished.is_set() or timeout_occurred.is_set():
                         break
                     elapsed += 60
-                    if elapsed % 300 == 0:  # 每 5 分钟输出一次
+                    if elapsed % 300 == 0:  # Output every 5 minutes
                         print(f"⏳ 模拟器仍在运行中... (已运行 {elapsed // 60} 分钟)")
-            
+
             monitor_thread = threading.Thread(target=progress_monitor, daemon=True)
             monitor_thread.start()
-            
-            # 等待进程完成或超时
-            # 使用轮询方式等待，这样可以及时响应超时
+
+            # Wait for process to complete or timeout
+            # Use polling to wait so that timeouts can be responded to in a timely manner
             while process.poll() is None:
                 if timeout_occurred.is_set():
-                    # 超时已发生，等待进程被终止
+                    # A timeout has occurred and the waiting process has been terminated
                     time.sleep(1)
                     continue
-                time.sleep(0.5)  # 每 0.5 秒检查一次进程状态
-            
-            # 等待输出读取完成（最多等待 10 秒）
+                time.sleep(0.5)  # Check process status every 0.5 seconds
+
+            # Wait for output reading to complete (up to 10 seconds)
             process_finished.wait(timeout=10)
-            
-            # 获取输出
+
+            # Get output
             try:
                 total_output = output_queue.get(timeout=1)
             except queue.Empty:
                 total_output = ""
-            
+
             elapsed = time.time() - start_time
-            
-            # 检查是否超时
+
+            # Check if timed out
             if timeout_occurred.is_set():
                 print(f"⏰ 模拟器执行超时 (超过 {timeout_seconds // 60} 分钟)，已强制终止")
                 print(f"   提示：如果测试用例确实需要更长时间，可以考虑增加超时时间")
                 print(f"{'='*60}\n")
                 return None, False
-            
-            # 输出模拟器日志（限制长度）
+
+            # Output simulator log (limited length)
             output_lines = total_output.strip().split('\n') if total_output else []
             if len(output_lines) > 30:
                 print(f"📤 模拟器输出 (前15行):")
@@ -216,11 +216,11 @@ class EmulatorRunner:
                 for line in output_lines:
                     print(f"   {line}")
 
-            # 默认值
+            # default value
             coverage_filename = "logs/coverage.dat"
 
-            # 优先匹配新的输出格式:
-            # 例如：dump coverage data to /root/XiangShan/build/2025-11-25-21-45-06.coverage.dat...
+            # Prioritize matching of new output formats:
+            # For example: dump coverage data to /root/XiangShan/build/2025-11-25-21-45-06.coverage.dat...
             match = re.search(
                 r'dump coverage data to\s*(.+?\.coverage\.dat)\.\.\.',
                 total_output
@@ -229,7 +229,7 @@ class EmulatorRunner:
                 coverage_filename = match.group(1).strip()
                 print(f"📁 找到 coverage 文件: {coverage_filename}")
             else:
-                # 兼容旧格式：Generated coverage filename: xxx
+                # Compatible with old formats: Generated coverage filename: xxx
                 match_old = re.search(
                     r'Generated coverage filename:\s*([^\s]+)',
                     total_output
@@ -253,7 +253,7 @@ class EmulatorRunner:
             print(f"❌ 执行错误: {e}")
             import traceback
             traceback.print_exc()
-            # 确保进程被终止
+            # Make sure the process is killed
             try:
                 if 'process' in locals():
                     process.terminate()
@@ -268,21 +268,21 @@ class EmulatorRunner:
 
 
 class SubprocessRunner:
-    """统一封装在某个目录下执行通用命令。"""
+    """Unified encapsulation to execute common commands in a certain directory."""
 
     @staticmethod
     def run(directory, command, shell=True, log_prefix="🔧"):
         """
-        使用 subprocess 在指定目录执行命令。
-        
-        所有命令都会被完整记录到日志中，包括：
-        - 工作目录
-        - 完整命令
-        - 执行结果
-        - 输出内容
+        Use subprocess to execute commands in the specified directory.
+
+        All commands will be fully logged, including:
+        - working directory
+        - Complete command
+        -Execution results
+        - Output content
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         print(f"\n{'='*60}")
         print(f"{log_prefix} [{timestamp}] 执行命令")
         print(f"{'='*60}")
@@ -290,7 +290,7 @@ class SubprocessRunner:
         print(f"💻 完整命令: {command}")
         print(f"💻 命令类型: {'shell' if shell else 'executable'}")
         print(f"-" * 60)
-        
+
         try:
             start_time = time.time()
             result = subprocess.run(
@@ -306,9 +306,9 @@ class SubprocessRunner:
             status_icon = "✅" if result.returncode == 0 else "❌"
             print(f"{status_icon} 返回值: {result.returncode}")
             print(f"⏱️ 耗时: {elapsed:.2f} 秒")
-            
+
             if result.stdout:
-                # 限制输出长度，避免日志过长
+                # Limit the output length to avoid too long logs
                 stdout_lines = result.stdout.strip().split('\n')
                 if len(stdout_lines) > 20:
                     print(f"📤 标准输出 (前10行):")
@@ -322,10 +322,10 @@ class SubprocessRunner:
                     print(f"📤 标准输出:")
                     for line in stdout_lines:
                         print(f"   {line}")
-            
+
             if result.stderr:
                 print(f"⚠️ 标准错误:\n{result.stderr}")
-            
+
             print(f"{'='*60}\n")
             return result
 
@@ -340,11 +340,11 @@ class SubprocessRunner:
 
 
 # =========================
-# 文件 / ASM 工具
+# File/ASM Tools
 # =========================
 
 def read_assembly_file(file_path):
-    """从汇编文件中读取代码内容。"""
+    """Read the code content from the assembly file."""
     try:
         with open(file_path, 'r') as f:
             return f.read()
@@ -355,8 +355,8 @@ def read_assembly_file(file_path):
 
 def list_elf_files(directory):
     """
-    列出目录中的 .elf 文件。
-    （原函数名叫 read_all_asm_files_listdir，其实读的是 elf，这里改个更直白的名字）
+    List the .elf files in the directory.
+    (The original function name is read_all_asm_files_listdir, but it actually reads elf. Let’s change it to a more straightforward name)
     """
     if not os.path.exists(directory):
         print(f"❌ 目录 '{directory}' 不存在")
@@ -372,7 +372,7 @@ def list_elf_files(directory):
 
 
 class AssemblyCodeParser:
-    """解析 LLM 生成的汇编代码、清洗并保存到文件。"""
+    """Parse LLM-generated assembly code, clean it, and save it to a file."""
 
     def __init__(self, module_name: str, config: PathConfig):
         self.sections = {}
@@ -382,7 +382,7 @@ class AssemblyCodeParser:
         self.config = config
 
     def generate_filename_hash(self, content, prefix="asm"):
-        """基于内容生成 hash 文件名。"""
+        """Generate hash file names based on content."""
         content_hash = hashlib.md5(content.encode('utf-8')).hexdigest()[:8]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -390,65 +390,65 @@ class AssemblyCodeParser:
         return f"{prefix}_{timestamp}_{content_hash}.S"
 
     def parse_from_llm_output(self, text):
-        """从 LLM 输出中提取汇编代码块并解析。支持多种格式。"""
+        """Extract assembly code blocks from LLM output and parse them. Supports multiple formats."""
         code_text = None
-        
-        # 尝试多种代码块格式
+
+        # Try various code block formats
         patterns = [
             r"```assembly\s*\n(.*?)\n```",      # ```assembly
             r"```asm\s*\n(.*?)\n```",           # ```asm
             r"```riscv\s*\n(.*?)\n```",         # ```riscv
             r"```s\s*\n(.*?)\n```",             # ```s
-            r"```\s*\n(.*?)\n```",              # ``` (无语言标记)
+            r"```\s*\n(.*?)\n```",              # ``` (no language tag)
             r"'''assembly\s*\n(.*?)\n'''",      # '''assembly
             r"'''asm\s*\n(.*?)\n'''",           # '''asm
         ]
-        
+
         for pattern in patterns:
             code_match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
             if code_match:
                 code_text = code_match.group(1)
                 break
-        
-        # 如果还是没找到，尝试查找 .section .text 或 .global _start
+
+        # If still not found, try looking for .section .text or .global _start
         if not code_text:
-            # 查找以 .section 或 .global 开头的代码段
+            # Find code sections starting with .section or .global
             match = re.search(
                 r'(\.(?:section|global)[^\n]*\n(?:.*?\n)*?(?:ecall|unimp))',
                 text, re.DOTALL | re.IGNORECASE
             )
             if match:
                 code_text = match.group(1)
-        
+
         if not code_text:
             return False
-        
+
         self._parse_assembly_code(code_text)
         return True
 
     def _parse_assembly_code(self, code_text):
-        """解析汇编代码结构，按 section 分类。"""
+        """Parse the assembly code structure and classify it by section."""
         lines = code_text.split('\n')
-        current_section = '.text'  # 默认段
+        current_section = '.text'  # Default segment
 
         for line in lines:
             line = line.strip()
             if not line:
                 continue
 
-            # 段定义
+            # segment definition
             if line.startswith('.section'):
                 section_match = re.match(r'\.section\s+([\.\w]+)', line)
                 if section_match:
                     current_section = section_match.group(1)
                     self.sections[current_section] = []
             elif line.startswith('.'):
-                # 其他伪指令
+                # Other directives
                 if current_section not in self.sections:
                     self.sections[current_section] = []
                 self.sections[current_section].append(line)
             else:
-                # 指令
+                # instruction
                 instruction = self._clean_instruction(line)
                 if instruction:
                     if current_section not in self.sections:
@@ -458,13 +458,13 @@ class AssemblyCodeParser:
 
     @staticmethod
     def _clean_instruction(line):
-        """移除行内注释，返回干净的指令行。"""
+        """Remove inline comments, returning a clean command line."""
         line = re.sub(r'#.*$', '', line).strip()
         line = re.sub(r'//.*$', '', line).strip()
         return line if line else None
 
     def generate_clean_assembly(self):
-        """生成干净的汇编文本。"""
+        """Generate clean assembly text."""
         output = []
         for section, content in self.sections.items():
             output.append(f".section {section}")
@@ -477,7 +477,7 @@ class AssemblyCodeParser:
         return '\n'.join(output)
 
     def save_to_file(self):
-        """保存汇编到 testcase 目录，返回相对文件名（不含路径）。"""
+        """Save the assembly to the testcase directory and return the relative file name (without path)."""
         clean_code = self.generate_clean_assembly()
         name = self.generate_filename_hash(clean_code)
         os.makedirs(self.config.testcase_dir, exist_ok=True)
@@ -487,11 +487,11 @@ class AssemblyCodeParser:
             f.write(clean_code)
 
         print(f"汇编代码已保存到: {filename}")
-        # 返回相对 testcase 目录的文件名，后续拼 elf 需要
+        # Returns the file name relative to the testcase directory. Subsequent spelling of elf is required.
         return f"{self.module_name}_{name}"
 
     def analyze_coverage(self):
-        """简单分析与覆盖相关的指令。"""
+        """Simple analysis of instructions related to coverage."""
         coverage_related = []
         for instr in self.instructions:
             if any(keyword in instr for keyword in ['li', 'sw', 'ecall', 'jmp', 'call']):
@@ -500,11 +500,11 @@ class AssemblyCodeParser:
 
 
 # =========================
-# 未覆盖代码仓库
+# Code repository not covered
 # =========================
 
 class UncoveredCodeRepository:
-    """负责管理 uncovered_code.json 和内存中的全局未覆盖代码。"""
+    """Responsible for managing uncovered_code.json and global uncovered code in memory."""
 
     def __init__(self, config: PathConfig , Coverage_filename_origin, Coverage_filename_later):
         self.config = config
@@ -512,7 +512,7 @@ class UncoveredCodeRepository:
         self.baseline_len = len(self.all_module_code)
         self.Coverage_filename_origin = Coverage_filename_origin
         self.Coverage_filename_later = Coverage_filename_later
-        
+
 
     def _load(self):
         try:
@@ -533,8 +533,8 @@ class UncoveredCodeRepository:
 
     def update_after_coverage(self):
         """
-        调用 get_uncovered_code() 获取新的全局未覆盖代码，
-        并与当前 self.all_module_code 做交集。
+        Call get_uncovered_code() to get the new global uncovered code,
+        And intersect with the current self.all_module_code.
         """
         new_all_module_code, flag = get_uncovered_code(self.Coverage_filename_origin, self.Coverage_filename_later)
         if not flag:
@@ -559,66 +559,66 @@ class UncoveredCodeRepository:
 
 
 # =========================
-# 其他小工具
+# Other gadgets
 # =========================
 
 def filter_print_cond_blocks(code_lines):
     """
-    过滤掉所有打印相关的代码行，包括：
-    1. if (`PRINTF_COND) begin ... $fwrite 的代码块
-    2. 所有包含 $fwrite 的行（不管是否在 PRINTF_COND 块中）
-    3. 所有包含 PRINTF_COND 的行
-    这样可以避免大量打印语句导致页面卡死
+    Filter out all printing-related lines of code, including:
+    1. if (`PRINTF_COND) begin ... $fwrite code block
+    2. All lines containing $fwrite (whether in a PRINTF_COND block or not)
+    3. All lines containing PRINTF_COND
+    This can avoid page freezes caused by a large number of print statements.
     """
     filtered = []
     skip = False
-    fwrite_continuation = False  # 标记是否在 $fwrite 的续行中
+    fwrite_continuation = False  # Whether the token is on the continuation line of $fwrite
 
     for line in code_lines:
         stripped = line.strip()
-        
-        # 跳过空行和纯注释行
+
+        # Skip empty lines and plain comment lines
         if not stripped or stripped.startswith('//'):
             continue
-        
-        # 1. 检测 PRINTF_COND 块开始
+
+        # 1. Detection of PRINTF_COND block start
         if 'if (`PRINTF_COND)' in line or 'if(PRINTF_COND)' in line:
             skip = True
             continue
-        
-        # 2. 检测 $fwrite 语句（包括续行）
+
+        # 2. Detect $fwrite statement (including line continuation)
         if '$fwrite' in stripped:
             skip = True
             fwrite_continuation = True
             continue
-        
-        # 3. 检测 $fwrite 的续行（通常以逗号或分号结尾，或者包含 io_timer 等）
+
+        # 3. Detect the continuation line of $fwrite (usually ends with a comma or semicolon, or contains io_timer, etc.)
         if fwrite_continuation:
-            # 如果遇到分号，说明 $fwrite 语句结束
+            # If a semicolon is encountered, the $fwrite statement ends
             if ';' in stripped:
                 fwrite_continuation = False
                 skip = False
-            # 如果遇到 end 或 begin，说明块结束
+            # If end or begin is encountered, the block ends
             elif stripped.startswith('end') or stripped.startswith('begin'):
                 fwrite_continuation = False
                 skip = False
-            # 否则继续跳过（续行）
+            # Otherwise continue to skip (continue line)
             continue
-        
-        # 4. 检测 PRINTF_COND 相关的其他模式
+
+        # 4. Detect other patterns related to PRINTF_COND
         if 'PRINTF_COND' in stripped:
             skip = True
             continue
-        
-        # 5. 如果遇到 end，结束 skip 状态
+
+        # 5. If end is encountered, end the skip state
         if skip and (stripped.startswith('end') or stripped.startswith('endmodule')):
             skip = False
-            # 不添加 end 行本身（如果它是 PRINTF_COND 块的结束）
+            # Do not add the end line itself (if it is the end of the PRINTF_COND block)
             if 'PRINTF_COND' not in stripped:
                 filtered.append(line)
             continue
-        
-        # 6. 只有在不跳过的情况下才添加
+
+        # 6. Only add if not skipped
         if not skip and not fwrite_continuation:
             filtered.append(line)
 
@@ -628,117 +628,117 @@ def filter_print_cond_blocks(code_lines):
 
 def build_fix_prompt(broken_code: str, error_msg: str, uncovered_code: str) -> str:
     """
-    生成让 LLM 修复代码的 prompt（修复模式）
-    
-    参数:
-        broken_code: 有错误的汇编代码
-        error_msg: 编译器的错误信息
-        uncovered_code: 目标未覆盖代码
+    Generate a prompt for LLM to repair code (repair mode)
+
+    parameter:
+        broken_code: assembly code with errors
+        error_msg: compiler error message
+        uncovered_code: target uncovered code
     """
     error_feedback = generate_error_feedback(error_msg)
-    
+
     prompt = f"""你是一个 RISC-V 汇编专家。以下汇编代码编译失败，请修复它。
 
-## 编译错误信息：
+# Compilation error message:
 {error_feedback}
 
-## 原始错误输出（前 500 字符）：
+# Raw error output (first 500 characters):
 ```
 {error_msg[:500]}
 ```
 
-## 需要修复的汇编代码：
+# Assembly code that needs fixing:
 ```assembly
 {broken_code}
 ```
 
-## 目标：触发以下未覆盖代码
+# Goal: Trigger the following uncovered code
 ```verilog
 {uncovered_code[:1000]}
 ```
 
-## 重要修复规则：
+# Important repair rules:
 1. **寄存器限制**：RISC-V 只有 t0-t6（没有 t7/t8/t9），s0-s11，a0-a7
 2. **CSR 寄存器**：使用数字编号（如 0x300 而非 mstatus）
 3. **立即数范围**：大多数指令的立即数必须在 12 位范围内（-2048 到 2047）
 4. **标签语法**：标签后必须有冒号，如 `loop:`
-5. **指令格式**：确保操作数顺序正确（目标寄存器在前）
+5. **Instruction format**: make sure operand order is correct, with the destination register first.
 
-请直接输出修复后的完整汇编代码，用 ```assembly 和 ``` 包裹。
-只输出修复后的代码，不要解释。
+Output the complete fixed assembly code wrapped by ```assembly and ```.
+Only output the fixed code; do not add extra explanation.
 """
     return prompt
 
 
 def build_analysis_prompt(asm_code: str, uncovered_code: str, coverage_result: str) -> str:
     """
-    生成让 LLM 分析为什么没有覆盖到目标代码的 prompt
-    
-    参数:
-        asm_code: 执行的汇编代码
-        uncovered_code: 目标未覆盖代码
-        coverage_result: 覆盖率结果描述
-    """
-    prompt = f"""你是一个硬件验证专家。以下汇编代码编译和执行都成功了，但没有覆盖到目标代码。请分析原因并生成改进后的代码。
+    Build the prompt used to analyze why the target code was not covered.
 
-## 执行的汇编代码：
+    Args:
+        asm_code: executed assembly code.
+        uncovered_code: target uncovered code.
+        coverage_result: coverage-result description.
+    """
+    prompt = f"""You are a hardware verification expert. The following assembly code was compiled and executed successfully, but the target code was not covered. Please analyze the reason and generate improved code.
+
+# Assembly code executed:
 ```assembly
 {asm_code[:1500]}
 ```
 
-## 目标未覆盖代码：
+# Target does not cover code:
 ```verilog
 {uncovered_code[:1000]}
 ```
 
-## 覆盖结果：
+# Override results:
 {coverage_result}
 
-## 请分析：
+# Please analyze:
 1. 为什么当前代码没有触发目标分支？
 2. 需要什么条件才能触发？
 3. 生成一个改进后的汇编代码
 
-请直接输出改进后的完整汇编代码，用 ```assembly 和 ``` 包裹。
-在代码前用注释简要说明改进思路（1-2行）。
+Output the complete improved assembly code wrapped by ```assembly and ```.
+Add one or two comment lines before the code to summarize the improvement idea.
 """
     return prompt
 
 
 def build_prompt(uncovered_code, good_seeds, scala_code, compile_error=None, no_coverage_count=0, agent_memory=None, module_name=None, use_spec=False):
     """
-    生成发给 LLM 的 prompt。
-    
-    参数:
-        uncovered_code: 未覆盖的代码
-        good_seeds: 成功的汇编代码示例
-        scala_code: 对应的 Scala 代码
-        compile_error: 上次编译的错误信息（如果有）
-        no_coverage_count: 连续无覆盖次数
-        agent_memory: AgentMemory 实例，用于提供上下文记忆
-        module_name: 当前测试的模块名（用于查找 spec 信息）
-        use_spec: 是否使用 spec 文件信息（通过命令行参数控制）
+    Build the main prompt sent to the LLM.
+
+    Args:
+        uncovered_code: uncovered target code.
+        good_seeds: successful assembly examples.
+        scala_code: corresponding Scala code.
+        compile_error: previous compilation error, if any.
+        no_coverage_count: number of consecutive no-coverage attempts.
+        agent_memory: AgentMemory instance for contextual memory.
+        module_name: current module name, used for SPEC lookup.
+        use_spec: whether to use SPEC information from command-line options.
     """
-    
-    # 分析目标代码，提取关键信息（只分析一次，避免重复）
+
+    # Analyze the target code once to avoid duplicated work.
     analyzer = VerilogAnalyzer()
     analysis_result = analyzer.analyze_uncovered_code(uncovered_code)
     code_type = analysis_result['code_type']
-    
-    # 生成格式化的分析结果
-    code_analysis = f"代码类型: {code_type}"
+
+    # Generate formatted analysis results.
+    code_analysis = f"code type: {code_type}"
     if analysis_result['conditions']:
-        code_analysis += f"\n关键条件: {len(analysis_result['conditions'])} 个"
+        code_analysis += f"\nKey conditions: {len(analysis_result['conditions'])} "
         for cond in analysis_result['conditions'][:3]:
             code_analysis += f"\n  - [{cond['type']}] {cond['expression'][:50]}"
     if analysis_result['values']:
-        code_analysis += f"\n关键常量值: {', '.join(analysis_result['values'][:5])}"
+        code_analysis += f"\nKey constant value: {', '.join(analysis_result['values'][:5])}"
     if analysis_result['suggestions']:
-        code_analysis += f"\n测试建议:"
+        code_analysis += f"\nTest suggestion:"
         for i, sug in enumerate(analysis_result['suggestions'][:3], 1):
             code_analysis += f"\n  {i}. {sug}"
-    
-    # 基于代码类型选择模板
+
+    # Choose a template based on code type.
     type_templates = {
         'csr': [asm_template_csr, asm_template],
         'memory': [asm_template_memory, asm_template_with_loop],
@@ -748,23 +748,23 @@ def build_prompt(uncovered_code, good_seeds, scala_code, compile_error=None, no_
         'exception': [asm_template_csr, asm_template_boundary],
         'general': [asm_template, asm_template_with_loop, asm_template_boundary],
     }
-    
+
     available_templates = type_templates.get(code_type, type_templates['general'])
     selected_template = random.choice(available_templates)
-    
-    prompt = f"""你是一个 RISC-V 汇编专家，正在进行硬件模糊测试。请生成能够触发以下未覆盖代码执行的 RISC-V 汇编程序。
+
+    prompt = f"""You are a RISC-V assembly expert performing hardware fuzz testing. Please generate a RISC-V assembler that triggers execution of the following uncovered code.
 
 {RISCV_INSTRUCTION_GUIDE}
 
-## 未覆盖的 Verilog 代码：
+# Verilog code not covered:
 ```verilog
 {uncovered_code}
 ```
 
-## 代码分析结果：
+# Code analysis results:
 {code_analysis}
 
-## 生成要求：
+# Build requirements:
 1. **先分析**：仔细阅读上面的代码分析结果，理解触发条件
 2. **针对性生成**：根据分析结果，生成能触发这些条件的指令序列
 3. **使用建议的值**：如果分析中提到了关键常量值，尝试使用这些值
@@ -773,16 +773,16 @@ def build_prompt(uncovered_code, good_seeds, scala_code, compile_error=None, no_
 6. **代码长度**：生成足够长的指令序列（建议 50-200 条指令），确保能充分触发硬件逻辑
 7. 【关键】寄存器只能用: t0-t6, s0-s11, a0-a7（没有 t7/t8/t9！）
 
-## 输出格式：
+# Output format:
 ```assembly
 .section .text
 .global _start
 
 _start:
-    # 简要说明测试策略（1-2行注释）
-    # 你的测试代码...
-    
-    # 程序退出（必须保留）
+    # Briefly describe the testing strategy (1-2 lines of comments)
+    # Your test code...
+
+    # Program exits (must be retained)
     li      gp, 1
     li      a7, 93
     li      a0, 0
@@ -790,70 +790,70 @@ _start:
     unimp
 ```
 
-## 参考示例：
+# Reference example:
 ```assembly
 {selected_template}
 ```
 """
-    
-    # 如果有记忆系统，添加上下文记忆
+
+    # Add contextual memory if the memory system is available.
     if agent_memory:
         memory_context = agent_memory.get_context_summary(uncovered_code)
         if memory_context:
             prompt += f"\n\n{memory_context}\n"
-    
-    # 添加 SPEC 文件信息（如果可用）
-    # 优先使用传入的 module_name，否则尝试从代码中提取
+
+    # Add SPEC file information if available.
+    # Prefer the provided module name; otherwise try to extract it from the code.
     detected_module_name = module_name
-    
+
     if not detected_module_name:
-        # 从 uncovered_code 中提取模块名
+        # Extract module name from uncovered_code.
         module_match = re.search(r'(\w+)\.sv', uncovered_code[:200])
         if module_match:
             detected_module_name = module_match.group(1)
-    
-    # 只有在启用 spec 分析时才添加 spec 信息
+
+    # Add SPEC information only when SPEC analysis is enabled.
     if use_spec and detected_module_name:
         try:
             spec_hints = get_module_spec_hints(detected_module_name, uncovered_code)
             if spec_hints:
                 prompt += f"\n\n{spec_hints}\n"
         except Exception as e:
-            # spec 分析失败不影响主流程
+            # SPEC analysis failure does not affect the main process.
             pass
 
-    # 如果有编译错误，添加简洁的错误反馈
+    # Add concise error feedback when compilation failed.
     if compile_error:
         error_feedback = generate_error_feedback(compile_error)
         prompt += f"""
 
-## ⚠️ 上次编译失败：
+# ⚠️Last ​​compilation failed:
 {error_feedback}
 
-请修正错误后重新生成。
+Please fix the errors and regenerate the assembly testcase.
 """
 
-    # 如果连续多次无覆盖，增加提示
+    # Add extra guidance after multiple no-coverage attempts.
     if no_coverage_count >= 2:
         prompt += f"""
 
-## ⚠️ 连续 {no_coverage_count} 次测试未覆盖新代码
-请尝试以下策略：
-1. 使用不同的边界值（0, -1, MAX_INT, MIN_INT）
-2. 尝试触发不同的条件分支
-3. 使用更多的寄存器组合
-4. 尝试异常情况（除零、溢出等）
+# ⚠️ New code not covered by {no_coverage_count} consecutive tests
+Try the following strategies:
+1. Use different boundary values, such as 0, -1, MAX_INT, and MIN_INT.
+2. Trigger different conditional branches.
+3. Use more register combinations.
+4. Try exceptional cases, such as divide-by-zero or overflow.
 """
 
-    # 添加成功的种子作为参考（概率性）
+    # Add successful seeds as references probabilistically.
     if good_seeds and random.random() < 0.4:
         selected_seed = random.choice(good_seeds)
-        # 限制长度
+        # Limit length.
         if len(selected_seed) > 1000:
             selected_seed = selected_seed[:1000] + "\n    # ...\n"
         prompt += f"""
 
-## 成功案例参考：
+# Success case reference:
 ```assembly
 {selected_seed}
 ```
@@ -863,11 +863,11 @@ _start:
 
 
 # =========================
-# 组合逻辑：模块级测试会话
+# Combinational logic: module-level test session
 # =========================
 
 class ModuleCoverageSession:
-    """围绕一个 module 的完整测试会话（包含已有 good seeds + LLM 新生成）。"""
+    """A complete testing session around a module (including existing good seeds + new LLM generation)."""
 
     def __init__(self, module_name: str, config: PathConfig, Coverage_filename_origin, Coverage_filename_later, model, global_coverage_manager=None, use_spec=False):
         self.module_name = module_name
@@ -878,9 +878,9 @@ class ModuleCoverageSession:
         self.Coverage_filename_origin = Coverage_filename_origin
         self.Coverage_filename_later = Coverage_filename_later
         self.model = model
-        self.use_spec = use_spec  # 是否使用 spec 文件分析
+        self.use_spec = use_spec  # Whether to use spec file analysis
 
-        # 使用传入的全局覆盖率管理器，或创建新的（向后兼容）
+        # Use the global coverage manager passed in, or create a new one (backward compatibility)
         if global_coverage_manager is not None:
             self.global_coverage_manager = global_coverage_manager
             print(f"🌍 使用共享的全局覆盖率管理器")
@@ -891,49 +891,49 @@ class ModuleCoverageSession:
                 sum_dat_file=config.sum_dat_file
             )
             print(f"🌍 全局覆盖率管理器已初始化")
-        
+
         print(f"   annotated 目录: {config.global_annotated_dir}")
         print(f"   累积覆盖率文件: {config.sum_dat_file}")
 
-        # 初始化统计数据
+        # Initialize statistics
         self.statistics = {
-            "llm_generation_count": 0,  # LLM 生成次数
-            "emulator_success_count": 0,  # 模拟器成功执行次数
-            "coverage_improved_count": 0,  # 成功覆盖的 case 个数（带来覆盖率提升的用例数）
-            "coverage_data": [],  # 覆盖率变化数据 [{timestamp, coverage_percentage, uncovered_lines, iteration}]
+            "llm_generation_count": 0,  # LLM generation times
+            "emulator_success_count": 0,  # Number of successful simulator executions
+            "coverage_improved_count": 0,  # The number of cases successfully covered (the number of use cases that improve coverage)
+            "coverage_data": [],  # Coverage change data [{timestamp, coverage_percentage, uncovered_lines, iteration}]
             "start_time": time.time(),
         }
-        
-        # 获取该模块的未覆盖代码
+
+        # Get the uncovered code for this module
         print(f"📖 正在读取模块 [{self.module_name}] 的未覆盖代码...")
         self.uncovered_module_lines, self.file_infos, self.scala_lines = \
             extract_lines_with_prefix_origin(self.module_name, self.Coverage_filename_origin)
 
         print(f"   ✅ 读取完成，未覆盖代码行数: {len(self.uncovered_module_lines)}")
-        
-        # 过滤 printf block 和所有 $fwrite 相关代码（避免大量打印语句导致页面卡死）
+
+        # Filter printf block and all $fwrite related code (to avoid page freezes caused by a large number of print statements)
         self.uncovered_module_lines = filter_print_cond_blocks(self.uncovered_module_lines)
         print(f"the total uncovered code line after filter is {len(self.uncovered_module_lines)}")
-        
-        # 只打印前 20 行作为示例，避免输出过多导致卡顿
+
+        # Only print the first 20 lines as examples to avoid lags caused by excessive output.
         print("前 20 行未覆盖代码示例:")
         for item in self.uncovered_module_lines[:20]:
             print(item)
         if len(self.uncovered_module_lines) > 20:
             print(f"... 还有 {len(self.uncovered_module_lines) - 20} 行未覆盖代码")
 
-        self.good_seeds = []  # 新生成且成功覆盖的 asm 文本
+        self.good_seeds = []  # Newly generated and successfully overwritten asm text
         self.fail_num = 0
 
-        # 初始化 Agent Memory 系统
+        # Initialize the Agent Memory system
         self.agent_memory = get_agent_memory(module_name)
         print(f"🧠 Agent Memory 系统已初始化（已有 {len(self.agent_memory.history)} 条历史记录）")
 
-        # 整个工程的全局未覆盖（用于打印信息）
+        # The entire project is not globally covered (used for printing information)
         print(f"📊 全局未覆盖代码行数: {len(self.uncovered_repo.all_module_code)}")
         print(f"✅ 模块 [{self.module_name}] 初始化完成")
 
-    # -------- 运行已有 good seeds (success 目录中的 elf) --------
+    # -------- Run existing good seeds (elf in success directory) --------
 
     def run_existing_success_elfs(self):
         success_dir = os.path.join(self.config.success_root, self.module_name)
@@ -945,8 +945,8 @@ class ModuleCoverageSession:
             return
 
         print(f"📂 模块 [{self.module_name}] 发现 {len(elf_files)} 个已有成功用例，开始运行...")
-        
-        # 收集所有 dat 文件，批量处理以减少覆盖率更新次数
+
+        # Collect all dat files and process them in batches to reduce the number of coverage updates
         dat_files = []
         for idx, elf_file_name in enumerate(elf_files, 1):
             print(f"   [{idx}/{len(elf_files)}] 运行用例: {elf_file_name}")
@@ -955,116 +955,116 @@ class ModuleCoverageSession:
             if not ok or not dat_file:
                 print(f"      ⚠️ 运行失败，跳过")
                 continue
-            
+
             dat_files.append(dat_file)
             print(f"      ✅ 运行成功，生成: {dat_file}")
-        
+
         if not dat_files:
             print(f"   ⚠️ 所有用例运行失败，跳过覆盖率更新")
             return
-        
-        # 优化：逐个合并到 sum_gj.dat，但只更新一次 annotated 报告（大幅减少耗时）
+
+        # Optimization: merge into sum_gj.dat one by one, but only update the annotated report once (significantly reducing time consumption)
         print(f"\n🔄 批量处理 {len(dat_files)} 个覆盖率文件...")
         print(f"   策略：逐个合并到累积文件，最后统一更新报告（减少更新次数）")
-        
-        # 逐个合并 dat 文件到 sum_gj.dat（只合并，不更新报告）
+
+        # Merge dat files one by one into sum_gj.dat (only merge, do not update the report)
         for idx, dat_file in enumerate(dat_files, 1):
             print(f"   [{idx}/{len(dat_files)}] 合并覆盖率文件: {os.path.basename(dat_file)}")
-            
-            # 只合并，不更新 annotated 报告
+
+            # Only merge, do not update annotated reports
             if not self.global_coverage_manager.merge_coverage_dat(dat_file):
                 print(f"      ❌ 合并失败，跳过此文件")
                 continue
             print(f"      ✅ 合并成功")
-        
-        # 所有文件合并完成后，只更新一次 annotated 报告和 coverage.info
+
+        # After all files are merged, the annotated report and coverage.info are updated only once
         print(f"\n🔄 所有覆盖率文件已合并，正在更新全局覆盖率报告...")
         print(f"   注意：这可能需要 30-60 秒，请耐心等待...")
-        
-        # 更新 annotated 报告（只执行一次）
+
+        # Update annotated report (only executed once)
         if self.global_coverage_manager.update_annotated_report():
             print(f"   ✅ Annotated 报告已更新")
         else:
             print(f"   ⚠️ Annotated 报告更新失败")
-        
-        # 更新 coverage.info（只执行一次）
+
+        # Update coverage.info (do this only once)
         if self.global_coverage_manager.update_coverage_info():
             print(f"   ✅ Coverage.info 已更新")
         else:
             print(f"   ⚠️ Coverage.info 更新失败")
-        
-        # 重新统计未覆盖代码行（用于更新模块级未覆盖列表）
+
+        # Recount uncovered lines of code (used to update the module-level uncovered list)
         print(f"   📊 正在重新统计未覆盖代码...")
         new_uncovered_lines = self.global_coverage_manager.get_all_uncovered_lines()
         cov = self.global_coverage_manager.get_total_coverage_from_genhtml(use_cache=False)
         pct = cov.get("coverage_percentage", 0) or 0
         print(f"   📊 当前覆盖率: {pct:.2f}%")
-        
-        # 更新模块的未覆盖代码列表（从全局 annotated 目录读取）
+
+        # Update the module's uncovered code list (read from the global annotated directory)
         global_module_file = os.path.join(
-            self.config.global_annotated_dir, 
+            self.config.global_annotated_dir,
             f"{self.module_name}.sv"
         )
         if os.path.exists(global_module_file):
             uncovered_code_stage = extract_lines_with_prefix_stage(
                 self.module_name, global_module_file
             )
-            # 更新模块未覆盖代码列表
+            # Code list not covered by update module
             self.uncovered_module_lines = [
                 line for line in self.uncovered_module_lines
                 if line in uncovered_code_stage
             ]
             print(f"   ✅ 模块 [{self.module_name}] 未覆盖代码列表已更新: {len(self.uncovered_module_lines)} 行")
-        
+
         print(f"✅ 模块 [{self.module_name}] 已有成功用例处理完成")
 
-    # -------- 处理 coverage.dat -> 更新未覆盖行 --------
+    # -------- Process coverage.dat -> Update uncovered rows --------
 
     def _apply_coverage_dat(self, dat_file: str, from_good_seed: bool):
         """
-        调用 verilator_coverage + 更新模块未覆盖 & 全局未覆盖行。
-        
-        优化：直接更新全局覆盖率，不再重复更新临时目录（logs2/annotated）
-        因为全局 annotated 目录已经包含了所有信息，模块级检查可以直接从全局目录读取
+        Call verilator_coverage + update module uncovered & global uncovered rows.
+
+        Optimization: directly update global coverage and no longer repeatedly update the temporary directory (logs2/annotated)
+        Because the global annotated directory already contains all information, module-level checks can read directly from the global directory
         """
-        # 使用全局覆盖率管理器检查全局覆盖率变化
-        # 这会自动：1) 合并 dat 到 sum_gj.dat  2) 更新全局 annotated 目录  3) 更新 coverage.info
+        # Check for global coverage changes using the Global Coverage Manager
+        # This automatically: 1) merges dat into sum_gj.dat 2) updates the global annotated directory 3) updates coverage.info
         print(f"📌 [阶段] 开始对当前 case 生成的覆盖率进行统计分析（合并 dat、更新 annotated、更新 coverage.info）")
         print(f"📌 [阶段] 正在合并并更新覆盖率（约需数秒），请稍候...")
         print(f"🔄 正在应用覆盖率数据: {dat_file}")
         global_improved, global_reduced, global_newly_covered = \
             self.global_coverage_manager.check_global_improvement(dat_file)
-        
-        # 保存全局覆盖率提升的标记，供后续判断是否保存测试用例
+
+        # Save the mark of global coverage improvement for subsequent judgment whether to save the test case
         self._last_global_improved = global_improved
         self._last_global_reduced = global_reduced
         self._last_global_newly_covered = global_newly_covered
 
-        # 从更新后的全局 annotated 目录读取模块的未覆盖代码
-        # 这样可以确保模块级检查也反映全局最新状态
+        # Read the module's uncovered code from the updated global annotated directory
+        # This ensures that module level checks also reflect the global latest state
         global_module_file = os.path.join(
-            self.config.global_annotated_dir, 
+            self.config.global_annotated_dir,
             f"{self.module_name}.sv"
         )
-        
-        # 优先使用全局 annotated 目录，如果文件存在的话
+
+        # Prefer the global annotated directory if the file exists
         if os.path.exists(global_module_file):
             uncovered_code_stage = extract_lines_with_prefix_stage(
                 self.module_name, global_module_file
             )
         else:
-            # 回退到原来的目录
+            # Go back to the original directory
             uncovered_code_stage = extract_lines_with_prefix_stage(
                 self.module_name, self.Coverage_filename_later
             )
-        
-        # 计算本模块新覆盖的行
+
+        # Calculate the newly covered rows of this module
         covered_lines = [
             line for line in self.uncovered_module_lines
             if line not in uncovered_code_stage
         ]
-        
-        # 更新模块未覆盖代码列表
+
+        # Code list not covered by update module
         self.uncovered_module_lines = [
             line for line in self.uncovered_module_lines
             if line in uncovered_code_stage
@@ -1075,11 +1075,11 @@ class ModuleCoverageSession:
         else:
             print(f"更新后未覆盖代码行数: {len(self.uncovered_module_lines)}")
 
-        # 如果有全局覆盖率提升，打印确认信息
+        # If there is global coverage improvement, print confirmation message
         if global_improved:
             print(f"✅ 全局覆盖率已更新到: {self.config.global_annotated_dir}")
 
-        # 更新旧的全局未覆盖信息（保持兼容）
+        # Update old global uncovered information (to maintain compatibility)
         updated = self.uncovered_repo.update_after_coverage()
         if from_good_seed and not updated:
             print(f"good seed 更新后所有模块未覆盖代码行数: "
@@ -1087,34 +1087,34 @@ class ModuleCoverageSession:
 
         return covered_lines
 
-    # -------- LLM 驱动的循环生成 --------
+    # -------- LLM driven loop generation --------
 
     def _select_uncovered_batch(self):
         """
-        智能选择一批未覆盖代码行 + 对应 scala 行。
-        
-        策略：
-        1. 如果未覆盖代码很多，选择一批（30-50行）给 LLM 处理
-        2. 根据失败次数动态调整选择范围，避免重复选择相同代码
-        3. 优先选择不同类型的代码（通过分析代码特征）
+        Intelligently select a batch of uncovered code lines + corresponding scala lines.
+
+        Strategy:
+        1. If there is a lot of uncovered code, select a batch (30-50 lines) for LLM to process
+        2. Dynamically adjust the selection range based on the number of failures to avoid repeatedly selecting the same code.
+        3. Prioritize different types of code (by analyzing code characteristics)
         """
-        # 动态批次大小：根据未覆盖代码数量调整
+        # Dynamic batch size: adjusts based on the amount of uncovered code
         if len(self.uncovered_module_lines) >= 50:
             batch_size = 50
         elif len(self.uncovered_module_lines) >= 20:
             batch_size = 30
         else:
             batch_size = len(self.uncovered_module_lines)
-        
-        # 根据失败次数选择不同的批次（避免重复）
+
+        # Select different batches based on number of failures (avoid duplication)
         batch_offset = (self.fail_num // 5) * batch_size
-        
+
         if len(self.uncovered_module_lines) > batch_size:
             start_idx = min(batch_offset, len(self.uncovered_module_lines) - batch_size)
             end_idx = start_idx + batch_size
             uncovered_code = self.uncovered_module_lines[start_idx:end_idx]
-            
-            # 对应的 scala 行（如果可用）
+
+            # The corresponding scala line (if available)
             scala_start = min(start_idx, len(self.scala_lines))
             scala_end = min(end_idx, len(self.scala_lines))
             scala_lines = self.scala_lines[scala_start:scala_end] if scala_start < len(self.scala_lines) else []
@@ -1126,12 +1126,12 @@ class ModuleCoverageSession:
         scala_code_txt = "".join(
             (line + "\n") for line in scala_lines if line is not None
         )
-        
+
         print(f"📋 选择了 {len(uncovered_code)} 行未覆盖代码（批次偏移: {batch_offset}）")
         return uncovered_code_txt, scala_code_txt
 
     def get_module_coverage_stats(self) -> dict:
-        """获取当前模块的覆盖率统计信息"""
+        """Get coverage statistics of the current module"""
         return {
             "module_name": self.module_name,
             "uncovered_lines": len(self.uncovered_module_lines),
@@ -1140,49 +1140,49 @@ class ModuleCoverageSession:
 
     def run_llm_loop(self, max_iterations: int = 20, save_stats_callback=None) -> dict:
         """
-        主循环：不断调用 LLM 生成新的测试用例并尝试覆盖。
-        
-        参数:
-            max_iterations: 最大尝试次数，达到后自动退出
-            save_stats_callback: 可选的保存统计数据回调函数，用于实时保存统计数据
-            
-        返回:
-            dict: 包含执行结果的字典
-                - status: "completed" (无未覆盖代码) / "max_iterations" (达到最大次数) / "error"
-                - iterations: 实际执行的迭代次数
-                - initial_uncovered: 初始未覆盖行数
-                - final_uncovered: 最终未覆盖行数
-                - covered_count: 本次覆盖的行数
+        Main loop: Continuously call LLM to generate new test cases and try to cover them.
+
+        parameter:
+            max_iterations: Maximum number of attempts, automatically exit after reaching
+            save_stats_callback: Optional save statistics callback function, used to save statistics in real time
+
+        return:
+            dict: Dictionary containing execution results
+                - status: "completed" (no uncovered code) / "max_iterations" (maximum number of times reached) / "error"
+                - iterations: actual number of iterations performed
+                - initial_uncovered: initial number of uncovered rows
+                - final_uncovered: The final number of uncovered rows
+                - covered_count: the number of rows covered this time
         """
         compile_error_info = None
         consecutive_compile_errors = 0
-        consecutive_no_coverage = 0  # 连续无覆盖次数
+        consecutive_no_coverage = 0  # Number of consecutive no coverage times
         iteration_count = 0
-        last_asm_code = None  # 保存上次生成的代码，用于修复模式
-        fix_attempt_count = 0  # 修复尝试次数
-        MAX_FIX_ATTEMPTS = 2  # 每次编译失败最多修复尝试次数
-        
-        # 记录初始状态
+        last_asm_code = None  # Save the last generated code for use in repair mode
+        fix_attempt_count = 0  # Repair attempts
+        MAX_FIX_ATTEMPTS = 2  # Maximum number of repair attempts per compilation failure
+
+        # Record initial state
         initial_uncovered_count = len(self.uncovered_module_lines)
         initial_uncovered_lines = self.uncovered_module_lines.copy()
-        
+
         print(f"\n{'='*60}")
         print(f"📊 模块 [{self.module_name}] 开始测试")
         print(f"   初始未覆盖代码行数: {initial_uncovered_count}")
         print(f"   最大尝试次数: {max_iterations}")
         print(f"   启用修复模式: 是（每次最多 {MAX_FIX_ATTEMPTS} 次修复尝试）")
         print(f"{'='*60}")
-        
+
         while len(self.uncovered_module_lines) >= 1:
             iteration_count += 1
-            
-            # 检查是否达到最大尝试次数
+
+            # Check if the maximum number of attempts has been reached
             if iteration_count > max_iterations:
                 print(f"\n⚠️ 模块 [{self.module_name}] 达到最大尝试次数 ({max_iterations})，切换到下一个模块")
-                
-                # 保存记忆
+
+                # save memory
                 self.agent_memory.finalize()
-                
+
                 return {
                     "status": "max_iterations",
                     "iterations": iteration_count - 1,
@@ -1199,48 +1199,48 @@ class ModuleCoverageSession:
             print(f"{'='*60}")
 
             uncovered_code_line, scala_code_line = self._select_uncovered_batch()
-            
-            # 使用改进的 prompt，传入编译错误信息、无覆盖次数、记忆系统、模块名和 spec 开关
+
+            # Use the improved prompt, passing in compilation error information, no coverage times, memory system, module name and spec switch
             prompt = build_prompt(
-                uncovered_code_line, 
-                self.good_seeds, 
+                uncovered_code_line,
+                self.good_seeds,
                 scala_code_line,
                 compile_error=compile_error_info,
                 no_coverage_count=consecutive_no_coverage,
                 agent_memory=self.agent_memory,
-                module_name=self.module_name,  # 传入模块名用于 spec 分析
-                use_spec=self.use_spec  # 是否启用 spec 分析
+                module_name=self.module_name,  # Pass in the module name for spec analysis
+                use_spec=self.use_spec  # Whether to enable spec analysis
             )
 
-            # 调用 LLM
+            # Call LLM
             start_time = time.time()
             print(f"📌 [阶段] LLM 开始生成 case（可能需数分钟），请勿中断...")
             print(f"📌 [阶段] 等待 LLM 生成用例（约需数分钟），请稍候...")
             print(f"🤖 正在调用 LLM ({self.model})...")
-            
-            # 统计 LLM 生成次数
+
+            # Count LLM generation times
             self.statistics["llm_generation_count"] += 1
-            
-            # 每5次LLM调用保存一次统计数据（实时更新）
+
+            # Statistics are saved every 5 LLM calls (updated in real time)
             if save_stats_callback and self.statistics["llm_generation_count"] % 5 == 0:
                 try:
                     save_stats_callback()
                 except Exception as e:
                     print(f"⚠️ 保存统计数据时出错: {e}")
-            
+
             if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
                 result = callOpenAI_KJY(prompt, self.model)
             else:
                 result = callOpenAI(prompt)
-            
+
             end_time = time.time()
             elapsed_time = end_time - start_time
             print(f"⏱️ LLM 响应时间: {elapsed_time:.2f} 秒")
-            
-            # 保存 LLM 输出用于调试
+
+            # Save LLM output for debugging
             debug_dir = "/root/ChipFuzzer/LLMoutput"
             os.makedirs(debug_dir, exist_ok=True)
-            
+
             debug_path = os.path.join(
                 debug_dir,
                 f"llm_result_{self.module_name}_{int(time.time())}.txt"
@@ -1253,13 +1253,13 @@ class ModuleCoverageSession:
                     debug_text = json.dumps(result, ensure_ascii=False, indent=2)
                 except Exception:
                     debug_text = str(result)
-    
+
             with open(debug_path, "w", encoding="utf-8") as f:
                 f.write(debug_text)
-    
+
             print(f"💾 LLM 原始输出已保存: {debug_path}")
 
-            # 解析 LLM 输出
+            # Parse LLM output
             parser = AssemblyCodeParser(self.module_name, self.config)
             parsed_ok = parser.parse_from_llm_output(result)
             if not parsed_ok:
@@ -1267,38 +1267,38 @@ class ModuleCoverageSession:
                 self.fail_num += 1
                 compile_error_info = None
                 continue
-            
-            # 获取解析后的汇编代码并验证
+
+            # Get the parsed assembly code and verify
             raw_asm_code = parser.generate_clean_assembly()
-            
+
             print("🔍 正在验证汇编代码...")
             is_valid, validation_errors = validate_asm(raw_asm_code)
-            
+
             if not is_valid:
                 print(f"⚠️ 汇编代码验证发现 {len(validation_errors)} 个问题:")
                 for err in validation_errors[:5]:
                     print(f"   - {err}")
-                
-                # 尝试自动修复
+
+                # Try automatic repair
                 print("🔧 正在尝试自动修复...")
                 fixed_code, fixes_applied = fix_asm(raw_asm_code)
-                
+
                 if fixes_applied:
                     print(f"✅ 已应用 {len(fixes_applied)} 个修复:")
                     for fix in fixes_applied[:5]:
                         print(f"   - {fix}")
-                    
-                    # 使用修复后的代码重新解析
+
+                    # Reparse using the fixed code
                     parser.sections = {}
                     parser.instructions = []
                     parser._parse_assembly_code(fixed_code)
 
-            # 保存汇编文件
+            # Save assembly file
             asm_file_name = parser.save_to_file()
             elf_file_name = asm_file_name.split(".")[0] + ".bin"
             print(f"📄 生成的文件: {asm_file_name}")
 
-            # 编译与仿真
+            # Compilation and simulation
             print(f"📌 [阶段] 开始对当前 case 进行编译与仿真（大模型生成的 case）")
             print(f"📌 [阶段] 正在编译...")
             compiler_dir = self.config.testcase_dir
@@ -1309,11 +1309,11 @@ class ModuleCoverageSession:
                 error_msg = compile_result.stderr if compile_result else "编译超时"
                 print(f"❌ 编译失败:\n{error_msg[:500]}")
                 print("验证流程: 编译失败")
-                
+
                 consecutive_compile_errors += 1
                 self.fail_num += 1
-                
-                # 记录失败的交互
+
+                # Logging failed interactions
                 self.agent_memory.record_interaction(
                     uncovered_code=uncovered_code_line,
                     prompt_type="generate",
@@ -1324,48 +1324,48 @@ class ModuleCoverageSession:
                     error_message=error_msg,
                     strategy=f"failed_iteration_{iteration_count}"
                 )
-                
-                # 保存当前代码用于修复
+
+                # Save current code for repair
                 last_asm_code = raw_asm_code
-                
-                # 尝试修复模式
+
+                # Try repair mode
                 if fix_attempt_count < MAX_FIX_ATTEMPTS:
                     fix_attempt_count += 1
                     print(f"🔧 启动修复模式（第 {fix_attempt_count}/{MAX_FIX_ATTEMPTS} 次修复尝试）...")
                     print(f"📌 [阶段] LLM 开始修复编译失败的 case（可能需数分钟），请勿中断...")
                     print(f"📌 [阶段] 等待 LLM 修复代码（约需数分钟），请稍候...")
-                    
-                    # 生成修复 prompt
+
+                    # Generate repair prompt
                     uncovered_code_line, _ = self._select_uncovered_batch()
                     fix_prompt = build_fix_prompt(raw_asm_code, error_msg, uncovered_code_line)
-                    
-                    # 调用 LLM 进行修复（添加超时和异常处理）
+
+                    # Call LLM to fix (add timeouts and exception handling)
                     print(f"🤖 正在调用 LLM 修复代码...")
                     try:
                         import signal
-                        
-                        # 设置超时（5分钟）
+
+                        # Set timeout (5 minutes)
                         def timeout_handler(signum, frame):
                             raise TimeoutError("LLM 修复调用超时（5分钟）")
-                        
-                        # 使用信号超时（仅限 Unix 系统）
+
+                        # Using signal timeouts (Unix systems only)
                         if hasattr(signal, 'SIGALRM'):
                             signal.signal(signal.SIGALRM, timeout_handler)
-                            signal.alarm(300)  # 5分钟超时
-                        
+                            signal.alarm(300)  # 5 minutes timeout
+
                         try:
                             if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
                                 fix_result = callOpenAI_KJY(fix_prompt, self.model)
                             else:
                                 fix_result = callOpenAI(fix_prompt)
                         finally:
-                            # 取消超时
+                            # Cancel timeout
                             if hasattr(signal, 'SIGALRM'):
                                 signal.alarm(0)
                     except TimeoutError as e:
                         print(f"❌ LLM 修复调用超时: {e}")
                         print(f"   跳过本次修复尝试，继续下一次迭代")
-                        fix_attempt_count -= 1  # 回退计数，因为这次没有真正尝试
+                        fix_attempt_count -= 1  # Fallback count since no real attempt was made this time
                         compile_error_info = error_msg
                         continue
                     except Exception as e:
@@ -1373,68 +1373,68 @@ class ModuleCoverageSession:
                         print(f"   跳过本次修复尝试，继续下一次迭代")
                         import traceback
                         traceback.print_exc()
-                        fix_attempt_count -= 1  # 回退计数，因为这次没有真正尝试
+                        fix_attempt_count -= 1  # Fallback count since no real attempt was made this time
                         compile_error_info = error_msg
                         continue
-                    
-                    # 解析修复后的代码
+
+                    # Parse the repaired code
                     fix_parser = AssemblyCodeParser(self.module_name, self.config)
                     if fix_parser.parse_from_llm_output(fix_result):
                         fixed_code = fix_parser.generate_clean_assembly()
-                        
-                        # 验证修复后的代码
+
+                        # Verify the fixed code
                         is_valid, _ = validate_asm(fixed_code)
                         if not is_valid:
                             fixed_code, _ = fix_asm(fixed_code)
-                        
-                        # 保存并编译修复后的代码
+
+                        # Save and compile the repaired code
                         asm_file_name = fix_parser.save_to_file()
                         elf_file_name = asm_file_name.split(".")[0] + ".bin"
                         print(f"📄 修复后的文件: {asm_file_name}")
-                        
+
                         compile_result = self.subproc.run(compiler_dir, f"sh complier.sh {asm_file_name}")
-                        
+
                         if compile_result and not compile_result.stderr:
                             print("✅ 修复后编译成功！")
                             print("验证流程: 编译成功")
                             compile_error_info = None
                             consecutive_compile_errors = 0
                             fix_attempt_count = 0
-                            
-                            # 记录修复成功的交互
+
+                            # Record successful repair interactions
                             self.agent_memory.record_interaction(
                                 uncovered_code=uncovered_code_line,
                                 prompt_type="fix",
                                 asm_code=fixed_code,
-                                success=False,  # 暂时，等覆盖率结果
+                                success=False,  # For now, wait for coverage results
                                 compile_success=True,
                                 coverage_improved=False,
                                 strategy=f"fix_attempt_{fix_attempt_count}"
                             )
-                            
-                            # 继续执行模拟器（不要 continue）
+
+                            # Continue executing the emulator (do not continue)
                             print(f"📌 [阶段] 正在启动仿真（约需数秒），请稍候...")
                             elf_rel_path = f"testcase/{elf_file_name}"
                             dat_file, ok = self.emulator.run_elf(elf_rel_path)
                             if ok and dat_file:
                                 print("验证流程: 仿真成功")
-                                # 统计模拟器成功执行次数
+                                # Count the number of successful executions of the simulator
                                 self.statistics["emulator_success_count"] += 1
-                                
+
                                 covered_lines = self._apply_coverage_dat(dat_file, from_good_seed=True)
                                 self._handle_success_seed_if_any(
                                     covered_lines=covered_lines,
                                     asm_file_name=asm_file_name,
                                     elf_file_name=elf_file_name
                                 )
-                                
-                                # 记录覆盖率数据（修复模式）
+
+                                # Record coverage data (repair mode)
                                 try:
                                     coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                                     if coverage_info and "coverage_percentage" in coverage_info:
                                         current_coverage = coverage_info["coverage_percentage"]
                                         uncovered_count = self.global_coverage_manager.baseline_uncovered_count
-                                        
+
                                         self.statistics["coverage_data"].append({
                                             "timestamp": time.time(),
                                             "coverage_percentage": current_coverage,
@@ -1444,27 +1444,27 @@ class ModuleCoverageSession:
                                         })
                                 except Exception as e:
                                     pass
-                                
-                                # 每次更新后立即保存统计数据
+
+                                # Save statistics immediately after each update
                                 if save_stats_callback:
                                     try:
                                         save_stats_callback()
                                     except Exception as e:
                                         print(f"⚠️ 保存统计数据时出错: {e}")
-                                
+
                                 global_improved = getattr(self, '_last_global_improved', False)
                                 if global_improved or bool(covered_lines):
                                     print("🎉 修复后的代码成功覆盖了新代码！")
                                     self.global_coverage_manager.print_total_coverage("更新后总覆盖率")
-                                    
-                                    # 更新记忆为成功
+
+                                    # Update memory to success
                                     if self.agent_memory.history:
                                         last_entry = self.agent_memory.history[-1]
                                         if fixed_code[:100] in last_entry.asm_code:
                                             last_entry.success = True
                                             last_entry.coverage_improved = True
                                             last_entry.coverage_lines = covered_lines
-                                    
+
                                     self.fail_num = 0
                                     consecutive_no_coverage = 0
                                 else:
@@ -1481,22 +1481,22 @@ class ModuleCoverageSession:
                             compile_error_info = compile_result.stderr if compile_result else "编译超时"
                     else:
                         print("⚠️ 无法解析修复后的代码")
-                    
+
                     continue
-                
-                # 修复尝试用完，重置状态
+
+                # Repair attempts exhausted, reset state
                 fix_attempt_count = 0
                 compile_error_info = error_msg
-                
-                # 如果连续编译错误太多，清除错误信息重新开始
-                # 但保留最后一次错误信息，因为可能包含有用的提示
+
+                # If there are too many consecutive compilation errors, clear the error messages and start again.
+                # But keep the last error message as it may contain useful tips
                 if consecutive_compile_errors >= 5:
                     print("⚠️ 连续编译错误过多（5次），清除错误信息重新尝试")
                     print("   提示：如果问题持续，可能需要检查 LLM 输出格式或汇编语法")
                     compile_error_info = None
                     consecutive_compile_errors = 0
-                    fix_attempt_count = 0  # 重置修复计数
-                
+                    fix_attempt_count = 0  # Reset repair count
+
                 continue
             else:
                 compile_error_info = None
@@ -1504,19 +1504,19 @@ class ModuleCoverageSession:
                 fix_attempt_count = 0
                 print("✅ 编译成功")
                 print("验证流程: 编译成功")
-                
-                # 记录编译成功（但还未知道覆盖率结果）
+
+                # Record compilation success (but coverage results are not known yet)
                 self.agent_memory.record_interaction(
                     uncovered_code=uncovered_code_line,
                     prompt_type="generate",
                     asm_code=raw_asm_code,
-                    success=False,  # 暂时为 False，等覆盖率结果出来再更新
+                    success=False,  # It is False for now and will be updated after the coverage results come out.
                     compile_success=True,
                     coverage_improved=False,
                     strategy=f"iteration_{iteration_count}"
                 )
 
-            # 运行模拟器
+            # Run emulator
             print(f"📌 [阶段] 正在启动仿真（约需数秒），请稍候...")
             elf_rel_path = f"testcase/{elf_file_name}"
             dat_file, ok = self.emulator.run_elf(elf_rel_path)
@@ -1525,37 +1525,37 @@ class ModuleCoverageSession:
                 print("验证流程: 仿真失败")
                 self.fail_num += 1
                 continue
-            
+
             print("验证流程: 仿真成功")
-            # 统计模拟器成功执行次数
+            # Count the number of successful executions of the simulator
             self.statistics["emulator_success_count"] += 1
 
-            # 应用 coverage.dat
+            # Apply coverage.dat
             covered_lines = self._apply_coverage_dat(dat_file, from_good_seed=True)
 
-            # 如果全局未覆盖行数减少，说明这次是“好种子”，做额外记录
-            # UncoveredCodeRepository.update_after_coverage 中已经打印成功信息
-            # 这里再做种子保存
+            # If the number of globally uncovered rows decreases, it means this is a "good seed" and additional records will be made.
+            # Success information has been printed in UncoveredCodeRepository.update_after_coverage
+            # Save seeds here
             self._handle_success_seed_if_any(
                 covered_lines=covered_lines,
                 asm_file_name=asm_file_name,
                 elf_file_name=elf_file_name
             )
 
-            # 获取全局覆盖率提升信息
+            # Get global coverage improvement information
             global_improved = getattr(self, '_last_global_improved', False)
-            
-            # 判断是否有覆盖率提升：全局提升 或 当前模块提升
+
+            # Determine whether there is coverage improvement: global improvement or current module improvement
             has_improvement = global_improved or bool(covered_lines)
-            
-            # 记录覆盖率数据（每次模拟器成功执行后都记录）
+
+            # Record coverage data (recorded after each successful execution of the simulator)
             try:
                 coverage_info = self.global_coverage_manager.get_total_coverage_from_genhtml()
                 if coverage_info and "coverage_percentage" in coverage_info:
                     current_coverage = coverage_info["coverage_percentage"]
                     uncovered_count = self.global_coverage_manager.baseline_uncovered_count
-                    
-                    # 记录覆盖率数据
+
+                    # Record coverage data
                     self.statistics["coverage_data"].append({
                         "timestamp": time.time(),
                         "coverage_percentage": current_coverage,
@@ -1563,42 +1563,42 @@ class ModuleCoverageSession:
                         "iteration": iteration_count,
                         "module": self.module_name,
                     })
-                    
-                    # 每次更新覆盖率数据后立即保存统计数据（实时更新）
+
+                    # Save statistics immediately after each coverage data update (live updates)
                     if save_stats_callback:
                         try:
                             save_stats_callback()
                         except Exception as e:
                             print(f"⚠️ 保存统计数据时出错: {e}")
             except Exception as e:
-                # 如果获取覆盖率失败，不影响主流程
+                # If acquisition of coverage fails, the main process will not be affected.
                 pass
-            
+
             if has_improvement:
                 print("🎉 检测到覆盖率提升！")
-                # 全局覆盖率已经在 _apply_coverage_dat -> check_global_improvement 中更新了
-                # 这里不需要再重复执行 verilator_coverage 命令
-                # 因为 GlobalCoverageManager.check_global_improvement 已经做了以下操作：
-                # 1. 合并 .dat 文件到 sum_gj.dat
-                # 2. 更新 annotated 报告
-                # 3. 更新 coverage.info
-                
-                # 显示更新后的总覆盖率
+                # Global coverage has been updated in _apply_coverage_dat -> check_global_improvement
+                # There is no need to repeat the verilator_coverage command here.
+                # Because GlobalCoverageManager.check_global_improvement has done the following:
+                # 1. Merge .dat files into sum_gj.dat
+                # 2. Update annotated report
+                # 3. Update coverage.info
+
+                # Show updated total coverage
                 self.global_coverage_manager.print_total_coverage("更新后总覆盖率")
-                
-                # 记录成功的交互（更新之前的记录）
-                # 找到最近的记录并更新
+
+                # Record successful interactions (update previous records)
+                # Find the most recent record and update it
                 if self.agent_memory.history:
                     last_entry = self.agent_memory.history[-1]
-                    if last_entry.asm_code[:100] == raw_asm_code[:100]:  # 匹配最近的记录
-                        # 更新为成功
+                    if last_entry.asm_code[:100] == raw_asm_code[:100]:  # Match the most recent record
+                        # updated successfully
                         last_entry.success = True
                         last_entry.coverage_improved = True
                         last_entry.coverage_lines = covered_lines
                         last_entry.strategy = f"successful_iteration_{iteration_count}"
-                
-                self.fail_num = 0  # 重置失败计数
-                consecutive_no_coverage = 0  # 重置无覆盖计数
+
+                self.fail_num = 0  # Reset failure count
+                consecutive_no_coverage = 0  # Reset no coverage count
                 last_asm_code = None
             else:
                 print("ℹ️  本次测试没有新的代码被覆盖（包括全局）")
@@ -1607,15 +1607,15 @@ class ModuleCoverageSession:
                 print(f"验证流程: 无覆盖用例: {asm_file_name}")
                 self.fail_num += 1
                 consecutive_no_coverage += 1
-                
-                # 更新记忆：编译成功但未提升覆盖率
+
+                # Update memory: Compilation successful but coverage not improved
                 if self.agent_memory.history:
                     last_entry = self.agent_memory.history[-1]
                     if last_entry.asm_code[:100] == raw_asm_code[:100]:
-                        last_entry.success = False  # 虽然编译成功，但未提升覆盖率
+                        last_entry.success = False  # Although the compilation was successful, the coverage was not improved
                         last_entry.coverage_improved = False
-                
-                # 如果连续多次没有覆盖新代码，触发分析模式
+
+                # If new code is not covered multiple times in a row, analysis mode is triggered.
                 if consecutive_no_coverage >= 3 and consecutive_no_coverage % 3 == 0:
                     print(f"🔍 连续 {consecutive_no_coverage} 次无新覆盖，启动分析模式...")
                     print(f"📌 [阶段] LLM 开始分析无覆盖原因并生成改进代码（可能需数分钟），请勿中断...")
@@ -1627,14 +1627,14 @@ class ModuleCoverageSession:
                         uncovered_code_line,
                         f"连续 {consecutive_no_coverage} 次执行成功但未覆盖新代码"
                     )
-                    
+
                     print(f"🤖 正在调用 LLM 分析原因并生成改进代码...")
                     if self.model == "qwen3:235b" or self.model == "deepseek-r1:671b":
                         analysis_result = callOpenAI_KJY(analysis_prompt, self.model)
                     else:
                         analysis_result = callOpenAI(analysis_prompt)
-                    
-                    # 保存分析结果用于下次参考
+
+                    # Save analysis results for next reference
                     analysis_dir = "/root/ChipFuzzer_cursor/analysis_log"
                     os.makedirs(analysis_dir, exist_ok=True)
                     analysis_path = os.path.join(
@@ -1646,8 +1646,8 @@ class ModuleCoverageSession:
                         f.write(f"连续无覆盖次数: {consecutive_no_coverage}\n")
                         f.write(f"目标代码:\n{uncovered_code_line[:500]}\n")
                         f.write(f"LLM 分析:\n{analysis_result}\n")
-                    
-                    # 记录分析模式的交互
+
+                    # Logging analysis mode interactions
                     self.agent_memory.record_interaction(
                         uncovered_code=uncovered_code_line,
                         prompt_type="analysis",
@@ -1659,13 +1659,13 @@ class ModuleCoverageSession:
                         feedback=str(analysis_result)[:500]
                     )
                     print(f"💾 分析结果已保存: {analysis_path}")
-        
-        # 循环正常结束（无未覆盖代码）
+
+        # The loop ends normally (no uncovered code)
         print(f"\n🎉 模块 [{self.module_name}] 测试完成！所有代码已覆盖！")
-        
-        # 保存记忆
+
+        # save memory
         self.agent_memory.finalize()
-        
+
         return {
             "status": "completed",
             "iterations": iteration_count,
@@ -1675,12 +1675,12 @@ class ModuleCoverageSession:
             "initial_lines": initial_uncovered_lines,
             "final_lines": [],
         }
-                
-         
+
+
     def _handle_success_seed_if_any(self, covered_lines, asm_file_name, elf_file_name):
         """
-        根据全局覆盖率是否提升来决定是否记录为 good seed.
-        优先使用全局覆盖率提升作为判断依据，而不仅仅是当前模块的覆盖。
+        Whether to record as good seed is determined based on whether the global coverage is improved.
+        Prioritize using global coverage improvement as a basis for judgment, rather than just the coverage of the current module.
         """
         success_dir = os.path.join(self.config.success_root, self.module_name)
         os.makedirs(success_dir, exist_ok=True)
@@ -1690,33 +1690,33 @@ class ModuleCoverageSession:
         testcase_elf_path = os.path.join(self.config.testcase_dir, elf_file_name)
 
         assembly_code = read_assembly_file(testcase_asm_path)
-        
+
         GJ_SUCCESS_SEED_DIR = "/root/ChipFuzzer_cursor/GJ_Success_Seed"
         os.makedirs(GJ_SUCCESS_SEED_DIR, exist_ok=True)
-        
-        # 获取全局覆盖率提升信息
+
+        # Get global coverage improvement information
         global_improved = getattr(self, '_last_global_improved', False)
         global_reduced = getattr(self, '_last_global_reduced', 0)
         global_newly_covered = getattr(self, '_last_global_newly_covered', [])
-        
-        # 判断是否应该保存：全局覆盖率提升 或 当前模块有覆盖新行
+
+        # Determine whether it should be saved: global coverage improvement or current module has new lines covered
         should_save = global_improved or bool(covered_lines)
-        
+
         if should_save and assembly_code:
-            # 1) 保存到 GJ_Success_Seed 目录（关键保存位置）
-            # 保存 .S 文件
+            # 1) Save to GJ_Success_Seed directory (key save location)
+            # Save .S file
             with open(os.path.join(GJ_SUCCESS_SEED_DIR, asm_file_name), 'w') as f:
                 f.write(assembly_code)
             print(f"✅ 成功案例已保存到 GJ_Success_Seed: {asm_file_name}")
-            
-            # 保存 .bin 文件到 GJ_Success_Seed
+
+            # Save .bin file to GJ_Success_Seed
             bin_file_name = asm_file_name.replace(".S", ".bin")
             testcase_bin_path = os.path.join(self.config.testcase_dir, bin_file_name)
             if os.path.exists(testcase_bin_path):
                 shutil.copy(testcase_bin_path, os.path.join(GJ_SUCCESS_SEED_DIR, bin_file_name))
                 print(f"✅ BIN 文件已保存到 GJ_Success_Seed: {bin_file_name}")
-            
-            # 生成并保存报告文件
+
+            # Generate and save report files
             self._generate_case_report(
                 case_name=asm_file_name.replace(".S", ""),
                 module_name=self.module_name,
@@ -1726,28 +1726,28 @@ class ModuleCoverageSession:
                 covered_lines=covered_lines,
                 output_dir=GJ_SUCCESS_SEED_DIR
             )
-            
-            # 2) 保存到 all_seed_dir
+
+            # 2) Save to all_seed_dir
             with open(os.path.join(self.config.all_seed_dir, asm_file_name), 'w') as f:
                 f.write(assembly_code)
-            
-            # 3) 复制 elf 到 success_dir
+
+            # 3) Copy elf to success_dir
             if os.path.exists(testcase_elf_path):
                 shutil.copy(testcase_elf_path, os.path.join(success_dir, elf_file_name))
                 print(f"✅ ELF 文件已保存到: {os.path.join(success_dir, elf_file_name)}")
-            
-            # 4) 添加到 good_seeds 内存列表，并统计成功覆盖的 case 数
+
+            # 4) Add to the good_seeds memory list and count the number of successfully covered cases
             self.good_seeds.append(assembly_code)
             self.statistics["coverage_improved_count"] = self.statistics.get("coverage_improved_count", 0) + 1
             print(f"当前参考案例数: {len(self.good_seeds)}")
-            
-            # 5) 保存到模块专属 success_dir
+
+            # 5) Save to module-specific success_dir
             with open(os.path.join(success_dir, asm_file_name), 'w') as f:
                 f.write(assembly_code)
-            
+
             print(f"✅ 汇编代码已保存到: {os.path.join(self.config.all_seed_dir, asm_file_name)}")
 
-        # 打印覆盖情况（仅输出：当前覆盖率、本次多覆盖行数、测试用例名+多覆盖行数）
+        # Print coverage (only output: current coverage, number of multi-coverage lines this time, test case name + number of multi-coverage lines)
         if global_improved:
             cov = self.global_coverage_manager.get_total_coverage_from_genhtml(use_cache=True)
             pct = cov.get("coverage_percentage", 0) or 0
@@ -1755,46 +1755,46 @@ class ModuleCoverageSession:
             print(f"📊 本次多覆盖: {global_reduced} 行代码")
             print(f"✅ 测试用例: {asm_file_name}，多覆盖 {global_reduced} 行代码")
             print("验证流程: 覆盖成功")
-        
+
         if covered_lines and not global_improved:
             print(f"📦 当前模块覆盖了 {len(covered_lines)} 行代码")
 
     def _analyze_covered_modules(self, covered_lines: list) -> dict:
         """
-        使用 LLM 分析覆盖的代码行，确定主要覆盖的模块和功能
-        
-        参数:
-            covered_lines: 覆盖的代码行列表（字符串列表）
-            
-        返回:
+        Use LLM to analyze the covered lines of code to determine the main covered modules and functions
+
+        parameter:
+            covered_lines: list of covered lines of code (list of strings)
+
+        return:
             {
-                "main_module": "模块名",
-                "module_distribution": {"模块名": 行数},
-                "main_function": "功能描述"
+                "main_module": "module name",
+                "module_distribution": {"module name": number of lines},
+                "main_function": "Function description"
             }
         """
         if not covered_lines:
             return {"main_module": "未知", "module_distribution": {}, "main_function": "未知"}
-        
-        # 限制分析范围，只取前 30 行作为样本（避免 prompt 太长）
+
+        # Limit the scope of analysis and only take the first 30 lines as samples (to avoid prompts that are too long)
         lines_to_analyze = covered_lines[:30]
-        
-        # 清理代码行：移除覆盖率标记和路径信息
+
+        # Clean lines of code: remove coverage markers and path information
         cleaned_lines = []
         for line in lines_to_analyze:
-            # 移除覆盖率标记 %000000
+            # Remove coverage tag %000000
             clean_line = re.sub(r'%\d{6}\s*', '', str(line)).strip()
-            # 移除路径信息 @[xxx:yy]
+            # Remove path information @[xxx:yy]
             clean_line = re.sub(r'@\[[^\]]+\]\s*', '', clean_line).strip()
             if clean_line and len(clean_line) > 5:
                 cleaned_lines.append(clean_line)
-        
+
         if not cleaned_lines:
             return {"main_module": "未知", "module_distribution": {}, "main_function": "未知"}
-        
-        # 构造 prompt，让 LLM 分析代码
-        code_sample = "\n".join(cleaned_lines[:20])  # 最多 20 行
-        
+
+        # Construct a prompt to let LLM analyze the code
+        code_sample = "\n".join(cleaned_lines[:20])  # Maximum 20 lines
+
         prompt = f"""请分析以下 SystemVerilog 代码片段，判断这些代码主要属于哪个模块，以及实现了什么功能。
 
 代码片段：
@@ -1809,72 +1809,72 @@ class ModuleCoverageSession:
 只返回 JSON，不要其他解释。如果无法确定，模块名返回"未知"，功能描述返回"未知"。"""
 
         try:
-            # 调用 LLM 分析
+            # Call LLM analysis
             llm_response = callOpenAI_KJY(prompt, self.model)
-            
-            # 尝试从响应中提取 JSON
-            # 移除可能的 markdown 代码块标记
+
+            # Try to extract JSON from the response
+            # Remove possible markdown code block tags
             llm_response = re.sub(r'```json\s*', '', llm_response)
             llm_response = re.sub(r'```\s*', '', llm_response).strip()
-            
-            # 尝试解析 JSON
+
+            # Try to parse JSON
             result = json.loads(llm_response)
-            
+
             main_module = result.get("main_module", "未知")
             main_function = result.get("main_function", "未知")
-            
-            # 构建返回结果
+
+            # Build return results
             module_distribution = {}
             if main_module != "未知":
                 module_distribution[main_module] = len(cleaned_lines)
-            
+
             return {
                 "main_module": main_module,
                 "module_distribution": module_distribution,
                 "main_function": main_function
             }
-            
+
         except Exception as e:
-            # 如果 LLM 调用失败或解析失败，返回默认值
+            # Returns default value if LLM call fails or parsing fails
             print(f"⚠️ LLM 分析覆盖代码失败: {e}")
             return {"main_module": "未知", "module_distribution": {}, "main_function": "未知"}
-    
+
     def _generate_case_report(self, case_name: str, module_name: str, global_improved: bool,
                               global_reduced: int, global_newly_covered: list, covered_lines: list,
                               output_dir: str):
         """
-        生成测试用例报告文件
-        
-        参数:
-            case_name: 用例名称（不含扩展名）
-            module_name: 测试的目标模块名（不一定是主要覆盖的模块）
-            global_improved: 是否全局覆盖率提升
-            global_reduced: 全局未覆盖行数减少量
-            global_newly_covered: 新覆盖的代码行列表（全局）
-            covered_lines: 当前模块覆盖的代码行列表
-            output_dir: 输出目录
+        Generate test case report files
+
+        parameter:
+            case_name: use case name (without extension)
+            module_name: The target module name of the test (not necessarily the main module covered)
+            global_improved: Whether global coverage is improved
+            global_reduced: global reduction in the number of uncovered rows
+            global_newly_covered: list of newly covered lines of code (global)
+            covered_lines: List of lines of code covered by the current module
+            output_dir: output directory
         """
         report_file = os.path.join(output_dir, f"{case_name}.txt")
-        
-        # 分析实际覆盖的模块和功能
-        # 优先使用 global_newly_covered（全局新覆盖的代码），如果没有则使用 covered_lines
+
+        # Analyze the modules and functions actually covered
+        # Prioritize using global_newly_covered (global newly covered code), if not, use covered_lines
         lines_to_analyze = global_newly_covered if global_newly_covered else covered_lines
         analysis = self._analyze_covered_modules(lines_to_analyze)
-        
+
         main_covered_module = analysis["main_module"]
         module_dist = analysis["module_distribution"]
         main_function = analysis["main_function"]
-        
-        # 构建报告内容（三句话左右）
+
+        # Construct the report content (about three sentences)
         report_lines = []
-        
-        # 第一句：主要覆盖的模块
+
+        # First sentence: Mainly covered modules
         if main_covered_module != "未知":
             report_lines.append(f"本测试用例主要覆盖了 {main_covered_module} 模块。")
         else:
             report_lines.append(f"本测试用例主要覆盖了 {module_name} 模块。")
-        
-        # 第二句：覆盖的代码实现了什么功能
+
+        # Second sentence: What functions does the covered code achieve:
         if main_function != "未知":
             if global_improved and global_reduced > 0:
                 report_lines.append(f"覆盖的代码主要实现了 {main_function} 功能，成功提升了全局代码覆盖率，减少了 {global_reduced} 行未覆盖代码。")
@@ -1895,10 +1895,10 @@ class ModuleCoverageSession:
                 report_lines.append(f"该用例覆盖了 {covered_count} 行之前未覆盖的代码。")
             else:
                 report_lines.append(f"该用例成功执行并产生了有效的覆盖率数据。")
-        
-        # 第三句：模块分布或代码示例
+
+        # Third sentence: Module distribution or code examples
         if len(module_dist) > 1:
-            # 显示前2-3个主要模块
+            # Show the first 2-3 main modules
             sorted_modules = sorted(module_dist.items(), key=lambda x: x[1], reverse=True)[:3]
             module_names = [f"{name}({count}行)" for name, count in sorted_modules]
             if len(module_dist) > 3:
@@ -1906,7 +1906,7 @@ class ModuleCoverageSession:
             else:
                 report_lines.append(f"覆盖的模块包括：{', '.join(module_names)}。")
         elif lines_to_analyze and len(lines_to_analyze) <= 5:
-            # 只有少量代码行，显示示例
+            # Only a few lines of code, showing examples
             sample_lines = lines_to_analyze[:2]
             sample_text = "、".join([re.sub(r'%\d{6}\s*', '', line).strip()[:40] + "..." if len(line) > 40 else re.sub(r'%\d{6}\s*', '', line).strip() for line in sample_lines])
             if len(lines_to_analyze) > 2:
@@ -1914,13 +1914,13 @@ class ModuleCoverageSession:
             else:
                 report_lines.append(f"覆盖的代码包括：{sample_text}。")
         else:
-            # 默认描述
+            # Default description
             if global_improved:
                 report_lines.append(f"该用例通过执行特定的指令序列触发了关键代码路径，有效提升了代码覆盖率。")
             else:
                 report_lines.append(f"该用例通过执行特定的指令序列触发了目标模块的关键代码路径。")
-        
-        # 写入报告文件
+
+        # Write report file
         try:
             with open(report_file, 'w', encoding='utf-8') as f:
                 f.write("\n".join(report_lines))
@@ -1930,7 +1930,7 @@ class ModuleCoverageSession:
 
 
 # =========================
-# main 入口
+# main entrance
 # =========================
 
 
@@ -1945,7 +1945,7 @@ def parse_arguments():
         #required=True,
         help='The path to the original coverage file (Coverage_filename_origin).'
     )
-    
+
     parser.add_argument(
         '--coverage_filename_later',
         type=str,
@@ -1953,14 +1953,14 @@ def parse_arguments():
         #required=True,
         help='The path to the later coverage file (Coverage_filename_later).'
     )
-    
+
     parser.add_argument(
         '--global_annotated_dir',
         type=str,
         default="/root/XiangShan/logs_global/annotated",
         help='全局覆盖率统计使用的 annotated 目录'
     )
-    
+
     parser.add_argument(
         '--module',
         type=str,
@@ -1968,7 +1968,7 @@ def parse_arguments():
        # required=True,
         help='target module'
     )
-    
+
     parser.add_argument(
         '--model',
         type=str,
@@ -1983,14 +1983,14 @@ def parse_arguments():
         default=100,
         help='模块索引或自动模式下的模块数量（默认 100）'
     )
-    
+
     parser.add_argument(
         '--dat',
         type=str,
         required=False,
         help='任务专属的 .dat 文件路径'
     )
-    
+
     parser.add_argument(
         '--mode',
         type=str,
@@ -1998,35 +1998,35 @@ def parse_arguments():
         default='continue',
         help='运行模式: continue=继续使用现有覆盖率文件, fresh=创建新的覆盖率文件'
     )
-    
+
     parser.add_argument(
         '--max_iterations',
         type=int,
         default=13,
         help='每个模块的最大尝试次数（默认 13 次），达到后自动切换到下一个模块'
     )
-    
+
     parser.add_argument(
         '--auto_switch',
         action='store_true',
-        default=False,  # store_true 的 default 应该是 False
+        default=False,  # The default of store_true should be False
         help='启用自动切换模块模式：当前模块完成或达到最大次数后自动切换到下一个模块（默认开启，除非显式禁用）'
     )
-    
+
     parser.add_argument(
         '--no-auto-switch',
         action='store_false',
         dest='auto_switch',
         help='禁用自动切换模块模式（默认是开启的）'
     )
-    
+
     parser.add_argument(
         '--use_spec',
         action='store_true',
         default=False,
         help='启用 SPEC 文件分析：使用 spec 文件中的模块接口信息来指导测试生成'
     )
-    
+
     parser.add_argument(
         '--run_existing_seeds',
         action='store_true',
@@ -2040,7 +2040,7 @@ def parse_arguments():
 
 
 def write_module_report(report_file: str, module_name: str, result: dict, start_time: str, end_time: str):
-    """将模块测试报告写入日志文件"""
+    """Write module test report to log file"""
     with open(report_file, 'a', encoding='utf-8') as f:
         f.write(f"\n{'='*80}\n")
         f.write(f"模块测试报告: {module_name}\n")
@@ -2053,7 +2053,7 @@ def write_module_report(report_file: str, module_name: str, result: dict, start_
         f.write(f"最终未覆盖行数: {result['final_uncovered']}\n")
         f.write(f"本次覆盖行数: {result['covered_count']}\n")
         f.write(f"\n--- 初始未覆盖代码行 ({result['initial_uncovered']} 行) ---\n")
-        for line in result.get('initial_lines', [])[:50]:  # 最多显示 50 行
+        for line in result.get('initial_lines', [])[:50]:  # Display up to 50 lines
             f.write(f"  {line}\n")
         if result['initial_uncovered'] > 50:
             f.write(f"  ... 还有 {result['initial_uncovered'] - 50} 行\n")
@@ -2071,53 +2071,53 @@ def main():
     model = args.model
     run_mode = args.mode
     new_dat_file = args.dat
-    
-    # 创建配置，更新全局 annotated 目录
+
+    # Create configuration and update global annotated directory
     config = PathConfig()
     config.global_annotated_dir = args.global_annotated_dir
-    
-    # 获取模块列表（可以是单个模块或多个模块）
-    # 如果指定了 --module，则只测试该模块
-    # 否则根据 --num 获取未覆盖代码最多的模块列表
-    # auto_switch 默认开启（除非显式指定 --no-auto-switch）
-    # 如果开启了 auto_switch，即使指定了单个模块，也会在完成后自动切换到下一个模块
-    
-    # 默认启用 auto_switch（如果用户没有显式指定 --no-auto-switch）
-    # 由于 argparse 的 store_true/store_false 机制：
-    # - 如果用户指定了 --auto_switch，args.auto_switch = True
-    # - 如果用户指定了 --no-auto-switch，args.auto_switch = False
-    # - 如果用户都没有指定，args.auto_switch = False（store_true 的默认值）
-    # 我们需要默认启用，所以检查 sys.argv 来判断用户是否显式指定了 --no-auto-switch
+
+    # Get a list of modules (can be a single module or multiple modules)
+    # If --module is specified, only that module is tested
+    # Otherwise, get the list of modules with the most uncovered code based on --num
+    # auto_switch is enabled by default (unless --no-auto-switch is explicitly specified)
+    # If auto_switch is turned on, even if a single module is specified, it will automatically switch to the next module after completion
+
+    # auto_switch is enabled by default (if the user does not explicitly specify --no-auto-switch)
+    # Due to argparse's store_true/store_false mechanism:
+    # - If the user specified --auto_switch, args.auto_switch = True
+    # - If the user specified --no-auto-switch, args.auto_switch = False
+    # - args.auto_switch = False (default for store_true) if neither specified by the user
+    # We need to enable it by default, so check sys.argv to see if the user explicitly specified --no-auto-switch
     import sys
     if '--no-auto-switch' not in sys.argv and '--auto_switch' not in sys.argv:
-        # 用户既没有显式启用也没有显式禁用，默认启用
+        # Neither explicitly enabled nor explicitly disabled by the user, enabled by default
         args.auto_switch = True
         print(f"ℹ️  自动切换模块模式：默认启用（如需禁用，请使用 --no-auto-switch）")
-    
+
     if args.module and args.module != "auto":
-        # 单模块模式
+        # Single module mode
         if args.auto_switch:
-            # 如果开启了自动切换，先获取未覆盖代码最多的 num 个模块
-            # 然后找到当前模块在列表中的位置，从该位置开始测试
+            # If automatic switching is turned on, first obtain the num modules with the most uncovered code
+            # Then find the position of the current module in the list and start testing from that position
             all_modules = getTopUncoveredModules(num, args.coverage_filename_origin)
             if args.module in all_modules:
-                # 找到当前模块的位置，从该位置开始
+                # Find the position of the current module and start from that position
                 start_idx = all_modules.index(args.module)
                 module_list = all_modules[start_idx:]
             else:
-                # 如果当前模块不在列表中，先测试当前模块，然后测试列表中的模块
+                # If the current module is not in the list, test the current module first, then test the modules in the list
                 module_list = [args.module] + all_modules
             print(f"🔄 自动切换模式：将从模块 {args.module} 开始，共 {len(module_list)} 个模块")
         else:
-            # 不开启自动切换，只测试指定模块
+            # Do not enable automatic switching and only test specified modules
             module_list = [args.module]
     else:
-        # 自动选择模式：获取未覆盖代码最多的 num 个模块
+        # Automatic selection mode: Get num modules with the most uncovered code
         module_list = getTopUncoveredModules(num, args.coverage_filename_origin)
-    
-    # 每模块最大尝试次数
+
+    # Maximum number of attempts per module
     max_iterations_per_module = args.max_iterations
-    
+
     print(f"=" * 60)
     print(f"🚀 启动 ChipFuzzer 覆盖率提升工具")
     print(f"   待测模块列表: {module_list}")
@@ -2128,11 +2128,11 @@ def main():
     print(f"   全局 annotated 目录: {config.global_annotated_dir}")
     print(f"   累积覆盖率文件: {config.sum_dat_file}")
     print(f"=" * 60)
-    
-    # 创建报告文件
+
+    # Create report file
     report_file = f"/root/ChipFuzzer_cursor/GJ_log/module_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
     os.makedirs(os.path.dirname(report_file), exist_ok=True)
-    
+
     with open(report_file, 'w', encoding='utf-8') as f:
         f.write(f"ChipFuzzer 多模块测试报告\n")
         f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -2140,15 +2140,15 @@ def main():
         f.write(f"运行模式: {run_mode}\n")
         f.write(f"每模块最大尝试次数: {max_iterations_per_module}\n")
         f.write(f"\n")
-    
-    # 创建全局覆盖率管理器（所有模块共享同一个实例，确保基线一致）
+
+    # Create a global coverage manager (all modules share the same instance to ensure consistent baselines)
     global_coverage_manager = GlobalCoverageManager(
         project_root=config.project_root,
         annotated_dir=config.global_annotated_dir,
         sum_dat_file=config.sum_dat_file
     )
-    
-    # 根据运行模式处理覆盖率文件
+
+    # Process coverage files based on run mode
     if run_mode == 'fresh':
         print(f"\n⚠️  Fresh 模式：将重置覆盖率文件")
         global_coverage_manager.reset_coverage(backup=True)
@@ -2164,35 +2164,35 @@ def main():
             global_coverage_manager.print_total_coverage("初始总覆盖率")
         else:
             print(f"\n📂 Continue 模式：覆盖率文件不存在，将创建新文件")
-        
+
         global_coverage_manager.print_module_group_stats("L2")
         print()
-    
-    # 多模块测试循环
+
+    # Multi-module test loop
     all_results = []
-    
-    # 初始化全局统计数据文件路径（用于实时保存）
+
+    # Initialize the global statistics file path (for real-time saving)
     stats_file_path = f"/root/ChipFuzzer_cursor/GJ_log/statistics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
-    # 全局字典：存储正在运行的模块的统计数据（用于实时保存）
-    # 格式: {module_name: {"statistics": session.statistics, "module_name": module_name}}
+
+    # Global dictionary: stores statistics of running modules (for real-time saving)
+    # Format: {module_name: {"statistics": session.statistics, "module_name": module_name}}
     running_modules_stats = {}
-    
+
     def save_statistics_realtime():
-        """实时保存统计数据到JSON文件（包括已完成和正在运行的模块）"""
+        """Save statistics to JSON files in real time (including completed and running modules)"""
         try:
             all_statistics = {
                 "run_id": new_dat_file.split("/")[-1].replace(".dat", "") if new_dat_file else "unknown",
                 "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                 "modules": []
             }
-            
+
             total_llm_count = 0
             total_emulator_success = 0
             total_coverage_improved = 0
             all_coverage_data = []
-            
-            # 1. 添加已完成的模块统计数据
+
+            # 1. Add completed module statistics
             for r in all_results:
                 if "statistics" in r:
                     stats = r["statistics"]
@@ -2200,37 +2200,37 @@ def main():
                     total_emulator_success += stats.get("emulator_success_count", 0)
                     total_coverage_improved += stats.get("coverage_improved_count", 0)
                     all_coverage_data.extend(stats.get("coverage_data", []))
-                    
+
                     all_statistics["modules"].append({
                         "module_name": r["module_name"],
                         "statistics": stats
                     })
-            
-            # 2. 添加正在运行的模块统计数据（实时更新）
+
+            # 2. Add running module statistics (updated in real time)
             for module_name, module_data in running_modules_stats.items():
                 stats = module_data.get("statistics", {})
                 total_llm_count += stats.get("llm_generation_count", 0)
                 total_emulator_success += stats.get("emulator_success_count", 0)
                 total_coverage_improved += stats.get("coverage_improved_count", 0)
                 all_coverage_data.extend(stats.get("coverage_data", []))
-                
+
                 all_statistics["modules"].append({
                     "module_name": module_name,
                     "statistics": stats
                 })
-            
+
             all_statistics["summary"] = {
                 "total_llm_generations": total_llm_count,
                 "total_emulator_success": total_emulator_success,
                 "total_coverage_improved": total_coverage_improved,
                 "total_coverage_points": len(all_coverage_data)
             }
-            
-            # 保存到 JSON 文件（时间戳命名，便于历史）
+
+            # Save to JSON file (named with timestamp for historical convenience)
             with open(stats_file_path, 'w', encoding='utf-8') as f:
                 json.dump(all_statistics, f, ensure_ascii=False, indent=2)
-            
-            # 同时按 run_id 写一份，便于统计 API 精确匹配当前任务，避免“成功覆盖 case 数”读错文件
+
+            # At the same time, write a copy according to run_id, so that the statistics API can accurately match the current task and avoid reading the wrong file "successfully covering the number of cases"
             current_run_id = all_statistics.get("run_id", "")
             if current_run_id and current_run_id != "unknown":
                 safe_run_id = current_run_id.replace("\\", "_").replace("/", "_").replace("..", "_").strip()
@@ -2240,45 +2240,45 @@ def main():
                         json.dump(all_statistics, f, ensure_ascii=False, indent=2)
                 except Exception as e:
                     print(f"⚠️ 按 run_id 保存统计失败: {e}")
-            
+
             print(f"📊 统计数据已实时保存: {stats_file_path}")
             print(f"   当前 LLM 生成次数: {total_llm_count}")
             print(f"   当前模拟器成功执行次数: {total_emulator_success}")
             print(f"   当前成功覆盖 case 数: {total_coverage_improved}")
         except Exception as e:
             print(f"⚠️ 保存统计数据失败: {e}")
-    
+
     for idx, module_name in enumerate(module_list):
         print(f"\n{'#'*60}")
-        print(f"# 开始测试模块 [{idx+1}/{len(module_list)}]: {module_name}")
+        print(f"# Start testing module [{idx+1}/{len(module_list)}]: {module_name}")
         print(f"{'#'*60}")
-        
-        # 为当前模块构造覆盖率文件路径
+
+        # Construct coverage file path for current module
         Coverage_filename_origin = args.coverage_filename_origin + module_name + ".sv"
         Coverage_filename_later = args.coverage_filename_later + module_name + ".sv"
-        
-        # 检查模块文件是否存在
+
+        # Check if module file exists
         if not os.path.exists(Coverage_filename_origin):
             print(f"⚠️ 模块文件不存在: {Coverage_filename_origin}，跳过")
             continue
-        
+
         module_start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+
         try:
-            # 创建模块测试会话（传入共享的全局覆盖率管理器和 spec 开关）
+            # Create a module testing session (passing in the shared global coverage manager and spec switch)
             print(f"🔧 正在初始化模块 [{module_name}] 的测试会话...")
             session = ModuleCoverageSession(
-                module_name, config, 
-                Coverage_filename_origin, Coverage_filename_later, 
+                module_name, config,
+                Coverage_filename_origin, Coverage_filename_later,
                 model,
-                global_coverage_manager=global_coverage_manager,  # 共享同一个实例
-                use_spec=args.use_spec  # 从命令行参数获取
+                global_coverage_manager=global_coverage_manager,  # Share the same instance
+                use_spec=args.use_spec  # Get from command line parameters
             )
-            
-            # 先跑已有的成功用例（这可能需要较长时间，特别是如果有多个用例）
-            # 设计说明：
-            # - 默认不运行已有成功用例（无论 Fresh 还是 Continue 模式），以节省时间
-            # - 可以通过 --run_existing_seeds 参数显式启用
+
+            # Run existing successful use cases first (this may take longer, especially if there are multiple use cases)
+            # Design description:
+            # - Existing successful use cases (regardless of Fresh or Continue mode) are not run by default to save time
+            # - Can be enabled explicitly via the --run_existing_seeds parameter
             if args.run_existing_seeds:
                 mode_desc = "Fresh 模式" if run_mode == 'fresh' else "Continue 模式"
                 print(f"🔄 [{mode_desc}] 开始运行模块 [{module_name}] 的已有成功用例（--run_existing_seeds 已启用）...")
@@ -2286,10 +2286,10 @@ def main():
                 session.run_existing_success_elfs()
                 print(f"✅ 模块 [{module_name}] 的已有成功用例处理完成")
             else:
-                # 默认跳过运行已有用例，直接开始 LLM 生成，节省时间
+                # By default, you skip running existing use cases and start LLM generation directly, saving time.
                 print(f"⏭️  跳过运行已有成功用例（默认行为，如需运行请使用 --run_existing_seeds 参数）")
-            
-            # 检查是否还有未覆盖代码
+
+            # Check if there is any uncovered code
             if len(session.uncovered_module_lines) == 0:
                 print(f"✅ 模块 [{module_name}] 已无未覆盖代码，跳过")
                 result = {
@@ -2302,24 +2302,24 @@ def main():
                     "final_lines": [],
                 }
             else:
-                # 注册当前模块的统计数据到全局字典（用于实时保存）
+                # Register the statistics of the current module to the global dictionary (for real-time saving)
                 running_modules_stats[module_name] = {
                     "statistics": session.statistics,
                     "module_name": module_name
                 }
-                # 立即保存一次（确保文件存在）
+                # Save once now (make sure the file exists)
                 save_statistics_realtime()
-                
-                # 运行 LLM 循环（传入保存函数和统计字典引用，以便定期保存）
+
+                # Run the LLM loop (passing in the save function and statistics dictionary reference for periodic saves)
                 result = session.run_llm_loop(
                     max_iterations=max_iterations_per_module,
-                    save_stats_callback=save_statistics_realtime  # 传入保存回调函数
+                    save_stats_callback=save_statistics_realtime  # Pass in the save callback function
                 )
-                
-                # 模块完成后，从运行中字典移除
+
+                # After the module is completed, it is removed from the running dictionary
                 if module_name in running_modules_stats:
                     del running_modules_stats[module_name]
-            
+
         except Exception as e:
             print(f"❌ 模块 [{module_name}] 测试出错: {e}")
             import traceback
@@ -2334,51 +2334,51 @@ def main():
                 "initial_lines": [],
                 "final_lines": [],
             }
-        
+
         module_end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        # 记录结果
+
+        # Record results
         result["module_name"] = module_name
-        # 添加统计数据到结果
+        # Add statistics to results
         if hasattr(session, 'statistics'):
             result["statistics"] = session.statistics
         all_results.append(result)
-        
-        # 写入报告
+
+        # write report
         write_module_report(report_file, module_name, result, module_start_time, module_end_time)
-        
-        # 实时保存统计数据（每个模块完成后保存一次）
+
+        # Save statistical data in real time (save once after each module is completed)
         save_statistics_realtime()
-        
-        # 打印当前模块测试摘要
+
+        # Print current module test summary
         print(f"\n📊 模块 [{module_name}] 测试摘要:")
         print(f"   状态: {result['status']}")
         print(f"   执行次数: {result['iterations']}")
         print(f"   覆盖率变化: {result['initial_uncovered']} → {result['final_uncovered']} (减少 {result['covered_count']} 行)")
-    
-    # 最终总结
+
+    # final summary
     print(f"\n{'='*60}")
     print(f"📋 所有模块测试完成！总结报告:")
     print(f"{'='*60}")
-    
+
     total_covered = 0
     for r in all_results:
         status_emoji = "✅" if r['status'] == 'completed' else "⏱️" if r['status'] == 'max_iterations' else "⚠️"
         print(f"  {status_emoji} {r['module_name']}: {r['initial_uncovered']} → {r['final_uncovered']} (覆盖 {r['covered_count']} 行, {r['iterations']} 次)")
         total_covered += r['covered_count']
-    
+
     print(f"\n  📈 本次运行总共覆盖: {total_covered} 行代码")
     print(f"  📄 详细报告已保存: {report_file}")
-    
-    # 显示最终总覆盖率
+
+    # Show final total coverage
     global_coverage_manager.print_total_coverage("最终总覆盖率")
     global_coverage_manager.print_module_group_stats("L2")
-    
-    # 最终保存统计数据到 JSON 文件（使用实时保存的文件路径）
-    # 注意：统计数据已经在每个模块完成后实时保存，这里只是最终确认保存
+
+    # Finally save the statistics to a JSON file (using the file path saved in real time)
+    # Note: The statistical data has been saved in real time after each module is completed. This is just the final confirmation of saving.
     save_statistics_realtime()
-    
-    # 读取最终统计数据用于打印
+
+    # Read final statistics for printing
     try:
         with open(stats_file_path, 'r', encoding='utf-8') as f:
             final_stats = json.load(f)

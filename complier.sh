@@ -1,39 +1,39 @@
 #!/bin/bash
 
-# 检查是否提供了输入文件
+# Check if input file is provided
 if [ $# -eq 0 ]; then
     echo "Usage: $0 <assembly_file.S> [output_bin_name]"
     exit 1
 fi
 
-# 获取输入文件名
+# Get input file name
 input_file=$1
 
-# 检查文件是否存在
+# Check if the file exists
 if [ ! -f "$input_file" ]; then
     echo "Error: File '$input_file' not found!"
     exit 1
 fi
 
-# 设置输出 bin 文件名
+# Set the output bin file name
 if [ $# -ge 2 ]; then
     output_bin=$2
 else
-    # 如果没有提供输出文件名，则使用输入文件的基本名加上 .bin
+    # If no output filename is provided, the basename of the input file plus .bin is used
     output_bin="${input_file%.*}.bin"
 fi
 
-# 设置工具链路径（根据你的实际路径可能需要调整）
+# Set the tool chain path (may need to be adjusted according to your actual path)
 TOOLCHAIN_PATH="/opt/riscv/bin"
 AS="${TOOLCHAIN_PATH}/riscv64-unknown-linux-gnu-as"
 LD="${TOOLCHAIN_PATH}/riscv64-unknown-linux-gnu-ld"
 OBJCOPY="${TOOLCHAIN_PATH}/riscv64-unknown-linux-gnu-objcopy"
 
-# 临时目标文件和临时 elf 文件
+# Temporary object files and temporary elf files
 temp_obj="${input_file%.*}.o"
 temp_elf="${input_file%.*}.elf"
 
-# 汇编命令
+# Assembly command
 echo "Assembling $input_file..."
 $AS -march=rv64gc -o "$temp_obj" "$input_file"
 if [ $? -ne 0 ]; then
@@ -41,7 +41,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 链接命令（先生成临时 ELF）
+# Link command (generate temporary ELF first)
 echo "Linking $temp_obj to $temp_elf..."
 $LD -o "$temp_elf" "$temp_obj"
 if [ $? -ne 0 ]; then
@@ -50,7 +50,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 使用 objcopy 生成纯二进制 .bin 文件
+# Use objcopy to generate pure binary .bin files
 echo "Converting $temp_elf to raw binary $output_bin..."
 $OBJCOPY -O binary "$temp_elf" "$output_bin"
 if [ $? -ne 0 ]; then
@@ -59,7 +59,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 清理临时文件
+# Clean temporary files
 rm -f "$temp_obj" "$temp_elf"
 
 echo "Successfully built $output_bin"

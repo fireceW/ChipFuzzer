@@ -1,179 +1,98 @@
-# Agent Memory 管理系统
+# Agent Memory System
 
-## 概述
+## Overview
 
-Agent Memory 系统是一个智能的上下文管理机制，用于提高 LLM 生成测试用例的准确性和效率。系统通过记录和分析历史交互，让 LLM 能够从过去的成功和失败中学习。
+The agent memory system stores historical LLM interactions and reuses them as context for future testcase generation. It is intended to improve generation quality by allowing the fuzzer to learn from prior successful and failed attempts.
 
-## 核心功能
+## Core Functions
 
-### 1. 对话历史管理
-- **记录每次交互**：保存每次 LLM 调用的完整上下文
-- **成功/失败标记**：记录哪些测试用例成功提升了覆盖率
-- **错误信息记录**：保存编译错误和执行错误，用于模式识别
+### Interaction History
 
-### 2. 代码模式学习
-- **指令序列模式**：识别有效的指令组合（3-5条指令）
-- **成功率统计**：跟踪每个模式的成功率和失败率
-- **模式示例库**：保存成功的代码示例供参考
+- Records each LLM call and its associated context.
+- Marks whether the generated testcase compiled, executed, and improved coverage.
+- Stores compilation and execution errors for later analysis.
 
-### 3. 错误模式库
-- **错误分类**：自动分类错误类型（寄存器错误、语法错误、符号错误等）
-- **错误频率统计**：识别最常见的错误类型
-- **避免重复**：在 prompt 中提醒 LLM 避免已知的错误模式
+### Code Pattern Learning
 
-### 4. 智能记忆检索
-- **相似代码匹配**：基于代码哈希匹配相似的未覆盖代码
-- **相关案例检索**：自动检索相关的成功和失败案例
-- **上下文增强**：将相关记忆整合到 prompt 中
+- Extracts recurring instruction-sequence patterns from successful assembly testcases.
+- Tracks success and failure counts for each pattern.
+- Stores representative examples for prompt augmentation.
 
-## 使用方法
+### Error Pattern Library
 
-### 基本集成
+- Classifies common errors such as register errors, syntax errors, undefined symbols, and timeouts.
+- Tracks how often each error type occurs.
+- Adds reminders to prompts so that the LLM avoids repeated mistakes.
 
-系统已自动集成到 `ModuleCoverageSession` 中：
+### Context Retrieval
+
+- Matches similar uncovered code by using normalized code hashes.
+- Retrieves relevant successful and failed cases.
+- Adds a compact memory summary to the generation prompt.
+
+## Integration
+
+The memory manager can be initialized inside the module-level fuzzing session:
 
 ```python
-# 在 ModuleCoverageSession.__init__ 中自动初始化
 self.agent_memory = get_agent_memory(module_name)
 ```
 
-### 记忆记录
+## When Memory Is Recorded
 
-系统会在以下场景自动记录记忆：
+The system records memory when:
 
-1. **编译成功时**：记录汇编代码和上下文
-2. **编译失败时**：记录错误信息和失败的代码
-3. **覆盖率提升时**：更新记录为成功，并提取代码模式
-4. **修复模式时**：记录修复尝试和结果
-5. **分析模式时**：记录分析结果和反馈
+1. A testcase is generated.
+2. Compilation succeeds or fails.
+3. Coverage improves.
+4. A correction attempt is made.
+5. An analysis prompt produces useful feedback.
 
-### 记忆检索
+## Memory Retrieval
 
-在生成 prompt 时，系统会自动：
+During prompt construction, the system:
 
-1. **检索相关历史**：根据当前未覆盖代码查找相似的历史案例
-2. **提取成功模式**：获取成功率高的代码模式
-3. **生成上下文总结**：将记忆信息格式化为 prompt 的一部分
+1. Looks for previous interactions with similar uncovered code.
+2. Retrieves high-success instruction patterns.
+3. Adds recent failure information to avoid repeated mistakes.
+4. Builds a concise prompt context for the LLM.
 
-## 文件结构
+## File Layout
 
-```
-/root/ChipFuzzer_cursor/
-├── agent_memory.py          # Agent Memory 核心实现
-├── agent_memory/             # 记忆存储目录
-│   ├── {module_name}_memory.json  # 每个模块的记忆文件
-└── ...
-```
-
-## 记忆文件格式
-
-```json
-{
-  "history": [
-    {
-      "timestamp": 1234567890.0,
-      "module_name": "L2Cache",
-      "uncovered_code_hash": "abc123...",
-      "prompt_type": "generate",
-      "success": true,
-      "coverage_improved": true,
-      "compile_success": true,
-      "asm_code": "...",
-      "error_message": null,
-      "coverage_lines": ["line1", "line2"],
-      "strategy": "successful_iteration_5",
-      "feedback": ""
-    }
-  ],
-  "patterns": {
-    "pattern_hash": {
-      "pattern_hash": "...",
-      "pattern_type": "instruction_sequence",
-      "success_count": 10,
-      "failure_count": 2,
-      "examples": ["...", "..."],
-      "last_used": 1234567890.0
-    }
-  },
-  "error_patterns": {
-    "register_error": 5,
-    "syntax_error": 3
-  }
-}
+```text
+agent_memory.py          # Core implementation
+agent_memory/            # Persistent memory directory
+`-- {module}_memory.json # Per-module memory file
 ```
 
-## 优势
+## Memory Format
 
-### 1. 提高准确性
-- **避免重复错误**：LLM 可以看到之前的错误，避免重复
-- **学习成功模式**：参考成功的代码模式，提高生成质量
-- **上下文感知**：基于相似代码的历史经验生成测试用例
+Each memory entry stores:
 
-### 2. 提高效率
-- **减少无效尝试**：避免重复已知无效的策略
-- **快速定位问题**：通过错误模式库快速识别常见问题
-- **策略优化**：优先使用成功率高的策略
+- Timestamp
+- Module name
+- Hash of the uncovered code
+- Prompt type
+- Generated assembly
+- Compilation status
+- Coverage improvement status
+- Error message, if any
+- Strategy and feedback metadata
 
-### 3. 持续学习
-- **跨会话记忆**：记忆持久化，跨运行会话保持
-- **模式积累**：随着测试进行，积累越来越多的有效模式
-- **自适应优化**：系统会根据历史数据自动优化策略
+## Retention Policy
 
-## 配置
+- Only the most recent 100 interaction records are persisted for each module.
+- Pattern memories are retained, but each pattern stores only a small number of examples.
+- Memory is saved periodically and again when the session finalizes.
 
-### 记忆目录
-默认记忆目录：`/root/ChipFuzzer_cursor/agent_memory`
+## Performance Impact
 
-可以通过修改 `AgentMemory.__init__` 中的 `memory_dir` 参数自定义。
+- Memory lookup is in-memory and typically takes less than 10 ms.
+- Per-module memory files are usually small.
+- JSON serialization is used for portability and simple inspection.
 
-### 记忆保留策略
-- **历史记录**：只保留最近 100 条记录（避免文件过大）
-- **模式记忆**：保留所有模式，但限制示例数量（每个模式最多 5 个示例）
-- **自动保存**：每 10 条记录自动保存一次，结束时完整保存
+## Future Improvements
 
-## 示例输出
-
-在 prompt 中，记忆系统会生成如下格式的上下文：
-
-```
-## 📚 相关成功案例：
-
-### 案例 1（successful_iteration_5）:
-```assembly
-addi t0, zero, 0x123
-slli t1, t0, 1
-add t2, t0, t1
-...
-```
-覆盖了 3 行代码
-
-## ✅ 有效的代码模式：
-
-### 模式 1（成功率: 85.7%）:
-```assembly
-addi t0, zero, 0x123
-slli t1, t0, 1
-add t2, t0, t1
-```
-
-## 常见错误模式（避免重复）：
-- register_error: 出现 5 次
-- syntax_error: 出现 3 次
-
-## 成功的策略（优先使用）：
-- successful_iteration_5: 成功 10 次
-- fix_attempt_1: 成功 5 次
-```
-
-## 性能影响
-
-- **内存占用**：每个模块约 1-5MB（取决于历史记录数量）
-- **检索时间**：< 10ms（基于内存中的数据结构）
-- **保存时间**：< 100ms（JSON 序列化）
-
-## 未来改进
-
-1. **向量化检索**：使用嵌入向量进行更精确的相似性匹配
-2. **机器学习优化**：使用 ML 模型预测哪些策略更可能成功
-3. **跨模块共享**：允许模块间共享成功的模式和策略
-4. **实时学习**：在测试过程中实时更新和优化策略
+- Vector-based retrieval for more accurate similarity matching.
+- Cross-module sharing of successful patterns.
+- Better ranking of strategies based on historical outcomes.

@@ -1,6 +1,6 @@
 """
-Verilog 代码分析器
-用于从目标未覆盖代码中提取触发条件，帮助 LLM 生成更精准的测试用例
+Verilog code analyzer
+Used to extract trigger conditions from target uncovered code to help LLM generate more accurate test cases
 """
 
 import re
@@ -8,10 +8,10 @@ from typing import List, Dict, Tuple, Optional
 
 
 class VerilogAnalyzer:
-    """分析 Verilog 代码，提取触发条件"""
+    """Analyze Verilog code and extract trigger conditions"""
     
     def __init__(self):
-        # 常见的信号模式
+        # Common signaling patterns
         self.signal_patterns = {
             'csr': r'csr|CSR|mstatus|mtvec|mepc|mcause|mie|mip|satp|sstatus',
             'memory': r'mem|load|store|addr|data|cache|tlb|TLB',
@@ -21,7 +21,7 @@ class VerilogAnalyzer:
             'float': r'float|fpu|FPU|fadd|fsub|fmul|fdiv',
         }
         
-        # 条件运算符
+        # conditional operator
         self.condition_ops = {
             '===': 'equals',
             '==': 'equals',
@@ -38,15 +38,15 @@ class VerilogAnalyzer:
     
     def analyze_uncovered_code(self, verilog_code: str) -> Dict:
         """
-        分析未覆盖的 Verilog 代码，提取关键信息
+        Analyze uncovered Verilog code and extract key information
         
-        返回:
+        return:
             {
-                'conditions': [...],  # 条件表达式列表
-                'signals': [...],     # 涉及的信号
-                'values': [...],      # 出现的常量值
-                'code_type': '...',   # 代码类型推断
-                'suggestions': [...], # 测试建议
+                'conditions': [...], # List of conditional expressions
+                'signals': [...], # Involved signals
+                'values': [...], # Constant values ​​that appear
+                'code_type': '...', # Code type inference
+                'suggestions': [...], # Test suggestions
             }
         """
         result = {
@@ -57,28 +57,28 @@ class VerilogAnalyzer:
             'suggestions': [],
         }
         
-        # 提取条件表达式
+        # Extract conditional expression
         result['conditions'] = self._extract_conditions(verilog_code)
         
-        # 提取信号名
+        # Extract signal name
         result['signals'] = self._extract_signals(verilog_code)
         
-        # 提取常量值
+        # Extract constant value
         result['values'] = self._extract_values(verilog_code)
         
-        # 推断代码类型
+        # Infer code type
         result['code_type'] = self._infer_code_type(verilog_code)
         
-        # 生成测试建议
+        # Generate test recommendations
         result['suggestions'] = self._generate_suggestions(result)
         
         return result
     
     def _extract_conditions(self, code: str) -> List[Dict]:
-        """提取条件表达式"""
+        """Extract conditional expression"""
         conditions = []
         
-        # 匹配 if 语句中的条件
+        # Match the condition in the if statement
         if_pattern = r'if\s*\(([^)]+)\)'
         for match in re.finditer(if_pattern, code):
             cond = match.group(1).strip()
@@ -88,7 +88,7 @@ class VerilogAnalyzer:
                 'parsed': self._parse_condition(cond)
             })
         
-        # 匹配 case 语句
+        # Match case statement
         case_pattern = r'(\d+\'[hHbBdD][\da-fA-F_]+)\s*:'
         for match in re.finditer(case_pattern, code):
             value = match.group(1)
@@ -98,24 +98,24 @@ class VerilogAnalyzer:
                 'parsed': {'value': value}
             })
         
-        # 匹配三元运算符
+        # match ternary operator
         ternary_pattern = r'\?\s*([^:]+)\s*:'
         for match in re.finditer(ternary_pattern, code):
             cond = match.group(1).strip()
-            if '?' not in cond:  # 避免嵌套
+            if '?' not in cond:  # avoid nesting
                 conditions.append({
                     'expression': cond,
                     'type': 'ternary',
                     'parsed': self._parse_condition(cond)
                 })
         
-        return conditions[:10]  # 限制数量
+        return conditions[:10]  # limited quantity
     
     def _parse_condition(self, cond: str) -> Dict:
-        """解析单个条件表达式"""
+        """Parse a single conditional expression"""
         result = {'raw': cond, 'parts': []}
         
-        # 检查比较运算符
+        # Check comparison operators
         for op, name in self.condition_ops.items():
             if op in cond:
                 parts = cond.split(op)
@@ -129,11 +129,11 @@ class VerilogAnalyzer:
         return result
     
     def _extract_signals(self, code: str) -> List[str]:
-        """提取信号名"""
+        """Extract signal name"""
         signals = set()
         
-        # 匹配常见信号名模式
-        # io.xxx, reg.xxx, wire_xxx 等
+        # Match common signal name patterns
+        # io.xxx, reg.xxx, wire_xxx, etc.
         patterns = [
             r'io\.(\w+)',
             r'reg_(\w+)',
@@ -148,7 +148,7 @@ class VerilogAnalyzer:
             for match in re.finditer(pattern, code):
                 signals.add(match.group(1))
         
-        # 匹配完整的信号路径
+        # Match the complete signal path
         full_signal_pattern = r'\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)\b'
         for match in re.finditer(full_signal_pattern, code):
             signals.add(match.group(1))
@@ -156,15 +156,15 @@ class VerilogAnalyzer:
         return list(signals)[:20]
     
     def _extract_values(self, code: str) -> List[str]:
-        """提取常量值"""
+        """Extract constant value"""
         values = set()
         
-        # 匹配 Verilog 风格的数字
+        # Match Verilog-style numbers
         patterns = [
-            r"\d+'[hH]([\da-fA-F_]+)",  # 十六进制
-            r"\d+'[bB]([01_]+)",         # 二进制
-            r"\d+'[dD](\d+)",            # 十进制
-            r'0x([\da-fA-F]+)',          # C 风格十六进制
+            r"\d+'[hH]([\da-fA-F_]+)",  # hexadecimal
+            r"\d+'[bB]([01_]+)",         # binary
+            r"\d+'[dD](\d+)",            # decimal
+            r'0x([\da-fA-F]+)',          # C style hex
         ]
         
         for pattern in patterns:
@@ -175,10 +175,10 @@ class VerilogAnalyzer:
         return list(values)[:15]
     
     def _infer_code_type(self, code: str) -> str:
-        """推断代码类型"""
+        """Infer code type"""
         code_lower = code.lower()
         
-        # 按优先级检查
+        # Check by priority
         type_checks = [
             ('csr', self.signal_patterns['csr']),
             ('memory', self.signal_patterns['memory']),
@@ -195,11 +195,11 @@ class VerilogAnalyzer:
         return 'general'
     
     def _generate_suggestions(self, analysis: Dict) -> List[str]:
-        """根据分析结果生成测试建议"""
+        """Generate test recommendations based on analysis results"""
         suggestions = []
         code_type = analysis['code_type']
         
-        # 基于代码类型的建议
+        # Recommendations based on code type
         type_suggestions = {
             'csr': [
                 '使用 csrrw/csrrs/csrrc 指令读写 CSR 寄存器',
@@ -235,11 +235,11 @@ class VerilogAnalyzer:
         
         suggestions.extend(type_suggestions.get(code_type, []))
         
-        # 基于提取的值的建议
+        # Recommendations based on extracted values
         for value in analysis['values'][:5]:
             suggestions.append(f'尝试使用值 {value} 作为操作数')
         
-        # 基于条件的建议
+        # Condition-based recommendations
         for cond in analysis['conditions'][:3]:
             if cond['type'] == 'if':
                 suggestions.append(f'需要满足条件: {cond["expression"][:50]}')
@@ -249,7 +249,7 @@ class VerilogAnalyzer:
 
 def analyze_target_code(verilog_code: str) -> str:
     """
-    分析目标代码并返回格式化的分析结果
+    Analyze target code and return formatted analysis results
     """
     analyzer = VerilogAnalyzer()
     result = analyzer.analyze_uncovered_code(verilog_code)
@@ -273,7 +273,7 @@ def analyze_target_code(verilog_code: str) -> str:
     return '\n'.join(output)
 
 
-# 测试策略模板
+# Test strategy template
 TEST_STRATEGIES = {
     'boundary': {
         'name': '边界值测试',
@@ -304,7 +304,7 @@ TEST_STRATEGIES = {
     li t1, 100
 seq_loop:
     addi t0, t0, 1
-    # 使用 t0 进行测试
+    # Test with t0
     blt t0, t1, seq_loop
 ''',
     },

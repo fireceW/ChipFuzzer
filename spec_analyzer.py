@@ -1,12 +1,12 @@
 """
-SPEC 文件分析器
-用于解析香山处理器的 spec 文件，提取关键信息用于指导测试生成
+SPEC file analyzer
+Used to parse the spec file of the Xiangshan processor and extract key information to guide test generation
 
-功能：
-1. 解析 spec 文件的接口定义
-2. 提取信号和端口信息
-3. 识别功能模块和状态机
-4. 生成针对性的测试建议
+Function:
+1. Parse the interface definition of the spec file
+2. Extract signal and port information
+3. Identify function modules and state machines
+4. Generate targeted testing recommendations
 """
 
 import os
@@ -18,16 +18,16 @@ from dataclasses import dataclass
 
 @dataclass
 class SignalInfo:
-    """信号信息"""
+    """signal information"""
     name: str
-    width: str  # 如 "8:0", "4:0"
+    width: str  # Such as "8:0", "4:0"
     direction: str  # "input", "output", "inout"
     description: str = ""
 
 
 @dataclass
 class ModuleSpec:
-    """模块规格信息"""
+    """Module specification information"""
     name: str
     signals: List[SignalInfo]
     submodules: List[str]
@@ -36,7 +36,7 @@ class ModuleSpec:
 
 
 class SpecAnalyzer:
-    """分析 spec 文件，提取模块规格信息"""
+    """Analyze the spec file and extract module specification information"""
     
     def __init__(self, spec_dir: str = "/root/XiangShan/build/rtl"):
         self.spec_dir = Path(spec_dir)
@@ -44,11 +44,11 @@ class SpecAnalyzer:
         self._load_specs()
     
     def _load_specs(self):
-        """加载所有 spec 文件"""
+        """Load all spec files"""
         if not self.spec_dir.exists():
             return
         
-        # 查找所有 spec 相关文件
+        # Find all spec related files
         spec_files = list(self.spec_dir.glob("*spec*.sv"))
         spec_files.extend(self.spec_dir.glob("*Spec*.sv"))
         
@@ -61,22 +61,22 @@ class SpecAnalyzer:
                 print(f"⚠️ 解析 spec 文件失败 {spec_file}: {e}")
     
     def _parse_spec_file(self, spec_file: Path) -> Optional[ModuleSpec]:
-        """解析单个 spec 文件"""
+        """Parse a single spec file"""
         try:
             with open(spec_file, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # 提取模块名
+            # Extract module name
             module_match = re.search(r'module\s+(\w+)', content)
             if not module_match:
                 return None
             
             module_name = module_match.group(1)
             
-            # 提取信号定义
+            # Extract signal definition
             signals = self._extract_signals(content)
             
-            # 提取子模块实例
+            # Extract submodule instance
             submodules = self._extract_submodules(content)
             
             return ModuleSpec(
@@ -90,11 +90,11 @@ class SpecAnalyzer:
             return None
     
     def _extract_signals(self, content: str) -> List[SignalInfo]:
-        """提取信号定义"""
+        """Extract signal definition"""
         signals = []
         
-        # 匹配端口定义：input/output/inout [width] signal_name
-        # 例如：input  [4:0] io_q_j,
+        # Matching port definition: input/output/inout [width] signal_name
+        # For example: input [4:0] io_q_j,
         port_pattern = r'(input|output|inout)\s+(?:\[([^\]]+)\])?\s*(\w+)'
         
         for match in re.finditer(port_pattern, content):
@@ -102,7 +102,7 @@ class SpecAnalyzer:
             width = match.group(2) or ""
             name = match.group(3)
             
-            # 跳过关键字和常见内部信号
+            # Skip keywords and common internal signals
             if name in ['module', 'endmodule', 'wire', 'reg', 'assign']:
                 continue
             
@@ -115,27 +115,27 @@ class SpecAnalyzer:
         return signals
     
     def _extract_submodules(self, content: str) -> List[str]:
-        """提取子模块实例"""
+        """Extract submodule instance"""
         submodules = []
         
-        # 匹配模块实例化：ModuleName instance_name (...)
+        # Match module instantiation: ModuleName instance_name (...)
         instance_pattern = r'(\w+)\s+\w+\s*\('
         
         for match in re.finditer(instance_pattern, content):
             module_name = match.group(1)
-            # 跳过常见的关键字
+            # Skip common keywords
             if module_name not in ['module', 'endmodule', 'if', 'else', 'case', 'always']:
                 submodules.append(module_name)
         
-        return list(set(submodules))[:10]  # 去重并限制数量
+        return list(set(submodules))[:10]  # Remove duplicates and limit quantity
     
     def get_module_spec(self, module_name: str) -> Optional[ModuleSpec]:
-        """获取模块的规格信息"""
-        # 精确匹配
+        """Get module specification information"""
+        # exact match
         if module_name in self.spec_cache:
             return self.spec_cache[module_name]
         
-        # 模糊匹配（处理带后缀的情况）
+        # Fuzzy matching (handling cases with suffixes)
         for cached_name, spec in self.spec_cache.items():
             if module_name in cached_name or cached_name in module_name:
                 return spec
@@ -143,7 +143,7 @@ class SpecAnalyzer:
         return None
     
     def get_signal_info(self, module_name: str, signal_name: str) -> Optional[SignalInfo]:
-        """获取特定信号的信息"""
+        """Get information about a specific signal"""
         spec = self.get_module_spec(module_name)
         if not spec:
             return None
@@ -156,30 +156,30 @@ class SpecAnalyzer:
     
     def generate_test_hints(self, module_name: str, uncovered_code: str) -> str:
         """
-        根据 spec 信息生成测试提示
+        Generate test prompts based on spec information
         
-        返回格式化的字符串，包含：
-        1. 模块接口信息
-        2. 关键信号说明
-        3. 测试建议
+        Returns a formatted string containing:
+        1. Module interface information
+        2. Description of key signals
+        3. Testing suggestions
         """
         spec = self.get_module_spec(module_name)
         if not spec:
             return ""
         
         hints = []
-        hints.append(f"## 📋 模块规格信息 ({module_name})")
+        hints.append(f"# 📋 Module specification information ({module_name})")
         hints.append(f"")
         
-        # 输入信号
+        # input signal
         input_signals = [s for s in spec.signals if s.direction == 'input']
         if input_signals:
             hints.append(f"**输入信号 ({len(input_signals)} 个):**")
-            for sig in input_signals[:10]:  # 限制显示数量
+            for sig in input_signals[:10]:  # Limit display quantity
                 width_info = f"[{sig.width}]" if sig.width else ""
                 hints.append(f"  - `{sig.name}` {width_info} ({sig.direction})")
         
-        # 输出信号
+        # Output signal
         output_signals = [s for s in spec.signals if s.direction == 'output']
         if output_signals:
             hints.append(f"\n**输出信号 ({len(output_signals)} 个):**")
@@ -187,11 +187,11 @@ class SpecAnalyzer:
                 width_info = f"[{sig.width}]" if sig.width else ""
                 hints.append(f"  - `{sig.name}` {width_info} ({sig.direction})")
         
-        # 子模块信息
+        # Submodule information
         if spec.submodules:
             hints.append(f"\n**子模块:** {', '.join(spec.submodules[:5])}")
         
-        # 从未覆盖代码中提取的信号
+        # Signals extracted from uncovered code
         uncovered_signals = self._extract_signals_from_code(uncovered_code)
         if uncovered_signals:
             hints.append(f"\n**未覆盖代码中的关键信号:**")
@@ -202,17 +202,17 @@ class SpecAnalyzer:
                 else:
                     hints.append(f"  - `{sig_name}`")
         
-        # 测试建议
+        # Testing recommendations
         hints.append(f"\n**测试建议:**")
         if input_signals:
             hints.append(f"  1. 通过 RISC-V 指令设置输入信号的值")
             hints.append(f"  2. 测试不同输入组合以触发所有分支")
         
-        # 根据信号宽度给出具体建议
+        # Give specific recommendations based on signal width
         for sig in input_signals[:3]:
             if sig.width:
                 try:
-                    # 解析宽度，如 "4:0" -> 5位, "8:0" -> 9位
+                    # Parse width, such as "4:0" -> 5 bits, "8:0" -> 9 bits
                     if ':' in sig.width:
                         parts = sig.width.split(':')
                         if len(parts) == 2:
@@ -227,32 +227,32 @@ class SpecAnalyzer:
         return '\n'.join(hints)
     
     def _extract_signals_from_code(self, code: str) -> List[str]:
-        """从代码中提取信号名"""
+        """Extract signal names from code"""
         signals = set()
         
-        # 匹配 io.xxx 格式
+        # Matches io.xxx format
         io_pattern = r'io\.(\w+)'
         for match in re.finditer(io_pattern, code):
             signals.add(match.group(1))
         
-        # 匹配常见的信号名模式
+        # Match common signal name patterns
         signal_pattern = r'\b([a-z_][a-z0-9_]*)\b'
         for match in re.finditer(signal_pattern, code):
             name = match.group(1)
-            # 过滤掉关键字
+            # filter out keywords
             if name not in ['if', 'else', 'begin', 'end', 'wire', 'reg', 'assign']:
-                if len(name) > 2 and '_' in name:  # 可能是信号名
+                if len(name) > 2 and '_' in name:  # possibly a signal name
                     signals.add(name)
         
         return list(signals)[:10]
 
 
-# 全局实例
+# global instance
 _spec_analyzer_instance = None
 
 
 def get_spec_analyzer() -> SpecAnalyzer:
-    """获取全局 spec 分析器实例"""
+    """Get the global spec analyzer instance"""
     global _spec_analyzer_instance
     if _spec_analyzer_instance is None:
         _spec_analyzer_instance = SpecAnalyzer()
@@ -261,14 +261,14 @@ def get_spec_analyzer() -> SpecAnalyzer:
 
 def get_module_spec_hints(module_name: str, uncovered_code: str) -> str:
     """
-    获取模块的 spec 提示信息
+    Get the spec prompt information of the module
     
-    参数:
-        module_name: 模块名
-        uncovered_code: 未覆盖的代码
+    parameter:
+        module_name: module name
+        uncovered_code: uncovered code
     
-    返回:
-        格式化的提示字符串
+    return:
+        Formatted prompt string
     """
     analyzer = get_spec_analyzer()
     return analyzer.generate_test_hints(module_name, uncovered_code)

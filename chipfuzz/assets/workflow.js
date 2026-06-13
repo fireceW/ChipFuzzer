@@ -1,56 +1,56 @@
 /**
- * 验证流程实时展示 —— 极简 3 区块版本
+ * Runtime workflow documentation.
  *
- * 只展示 3 类关键信息：
- *  1. LLM 生成的用例（展示实际汇编代码，关键部分）
- *  2. 编译 & 仿真执行的命令 / 结果
- *  3. 覆盖率分析的结论（提升了多少、是否异常）
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
  *
- * 特性：
- *  - 任务开始时自动清空列表（只保留本次 flow）
- *  - 汇编代码只显示关键部分（前5行+后5行，中间用 ..... 代替）
- *  - 自动读取 .S 文件和 LLM 输出文件，提取实际代码
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
+ * Runtime workflow documentation.
  */
 
 (() => {
   'use strict';
 
-  const MAX_ITEMS = 30;  // 每个列表最多保留30条
-  const CODE_PREVIEW_LINES = 10;  // 代码预览：前10行 + 后10行（增加信息量）
+  const MAX_ITEMS = 30;  // Each list can keep up to 30 items
+  const CODE_PREVIEW_LINES = 10;  // Code preview: first 10 lines + last 10 lines (increases the amount of information)
 
-  let genListEl = null;  // LLM 生成用例
-  let cmdListEl = null;  // 编译 / 仿真命令 & 结果
-  let covListEl = null;  // 覆盖率分析摘要
-  let covSummaryBox = null;  // 四合一摘要框
+  let genListEl = null;  // LLM generates use cases
+  let cmdListEl = null;  // Compile/simulate commands & results
+  let covListEl = null;  // Coverage analysis summary
+  let covSummaryBox = null;  // 4-in-1 summary box
   let covEmptyEl = null;
-  let apiBase = null;  // API 基础路径
-  /** 覆盖率摘要四项合并到一个框 */
+  let apiBase = null;  // API base path
+  /* Runtime workflow documentation.
   let latestCovSummary = { status: '', rate: '', lines: '', caseName: '' };
-  /** 当前 case：编译命令、编译是否成功、仿真命令、仿真是否成功 合并为一块 */
+  /* Runtime workflow documentation.
   let currentCase = { compileCmd: '', compileOk: '', simCmd: '', simOk: '' };
 
-  /** HTML 转义 */
+  /* Runtime workflow documentation.
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  /** 提取汇编代码的关键部分（前N行 + 后N行，中间用 ..... 代替） */
+  /* Runtime workflow documentation.
   function extractKeyCode(fullCode) {
     if (!fullCode) return '';
     const lines = fullCode.split('\n').filter(l => l.trim());
     if (lines.length <= CODE_PREVIEW_LINES * 2) {
-      return fullCode;  // 代码太短，直接返回全部
+      return fullCode;  // The code is too short, return all directly
     }
     const head = lines.slice(0, CODE_PREVIEW_LINES).join('\n');
     const tail = lines.slice(-CODE_PREVIEW_LINES).join('\n');
     return `${head}\n.....\n${tail}`;
   }
 
-  /** 从 LLM 输出中提取 ```assembly 代码块 */
+  /* Runtime workflow documentation.
   function extractAssemblyFromLLMOutput(content) {
-    // 匹配 ```assembly ... ``` 或 '''assembly ... '''
+    // UI/runtime helper.
     const patterns = [
       /```assembly\s*\n([\s\S]*?)\n```/,
       /'''assembly\s*\n([\s\S]*?)\n'''/,
@@ -65,16 +65,16 @@
     return null;
   }
 
-  /** 从输入框获取规范化的 API Base（去掉尾部 / 和 /api） */
+  /* Runtime workflow documentation.
   function ensureApiBase() {
     if (apiBase) return apiBase;
     const apiBaseEl = document.getElementById('apiBase');
     let raw = apiBaseEl ? (apiBaseEl.value || '') : '';
-    if (!raw) raw = 'http://localhost'; // 与 main.js 保持一致
+    if (!raw) raw = 'http:// localhost'; // consistent with main.js
     raw = raw.trim();
-    // 去掉尾部的 /
+    // UI/runtime helper.
     while (raw.endsWith('/')) raw = raw.slice(0, -1);
-    // 如果以 /api 结尾，去掉这一段，避免出现 /api/api/...
+    // UI/runtime helper.
     if (raw.toLowerCase().endsWith('/api')) {
       raw = raw.slice(0, -4);
     }
@@ -82,7 +82,7 @@
     return apiBase;
   }
 
-  /** 读取文件内容（调用后端 API） */
+  /* Runtime workflow documentation.
   async function readFileContent(filePath) {
     const base = ensureApiBase();
 
@@ -107,7 +107,7 @@
     }
   }
 
-  /** 将 currentCase 渲染到「编译/仿真」区域的唯一一块中（实时刷新，不追加，避免 DOM 过多卡顿） */
+  /* Runtime workflow documentation.
   function renderCurrentCaseBlock() {
     if (!cmdListEl) return;
     const c = currentCase;
@@ -137,7 +137,7 @@
     `;
   }
 
-  /** 完成当前 case 并清空，下次将刷新为新区块内容（不追加历史，仅保留一块） */
+  /* Runtime workflow documentation.
   function flushCaseBlock() {
     if (!cmdListEl) return;
     const c = currentCase;
@@ -146,14 +146,14 @@
     currentCase = { compileCmd: '', compileOk: '', simCmd: '', simOk: '' };
   }
 
-  /** 追加一条记录。appendAtEnd=true 时按时间顺序（先编译后仿真），否则最新在上方。
-   * 注意：编译/仿真区域只允许通过 flushCaseBlock() 追加，不在此处单独追加。 */
+  /* Runtime workflow documentation.
+   * Runtime workflow documentation.
   function appendItem(targetEl, title, content, isCode = false, appendAtEnd = false) {
     if (!targetEl) return;
-    if (targetEl === cmdListEl) return;  // 编译/仿真只用一个框输出，不单独 append
+    if (targetEl === cmdListEl) return;  // Compilation/simulation only uses one box for output, no separate append
     if (!content || !content.trim()) return;
 
-    // 第一次插入时移除空提示
+    // UI/runtime helper.
     const empty = targetEl.querySelector('.workflow-output-empty');
     if (empty) empty.remove();
 
@@ -177,7 +177,7 @@
 
     if (appendAtEnd) {
       targetEl.appendChild(wrapper);
-      // 超出时删掉最上面（最旧）的一条
+      // UI/runtime helper.
       const items = targetEl.querySelectorAll('.workflow-output-item');
       if (items.length > MAX_ITEMS) {
         targetEl.removeChild(items[0]);
@@ -191,14 +191,14 @@
     }
   }
 
-  /** 提取路径中的用例文件名（如 Bku_asm_20260129_170905_594489d1.S） */
+  /* Runtime workflow documentation.
   function basename(path) {
     if (!path) return '';
     const parts = path.replace(/\\/g, '/').split('/');
     return parts[parts.length - 1] || path;
   }
 
-  /** 处理汇编文件路径：读取文件并展示关键代码 + 用例文件名（实时更新，只保留最新一条） */
+  /* Runtime workflow documentation.
   async function handleAssemblyFile(filePath) {
     console.log('[Workflow] 🚀 实时读取新汇编文件:', filePath);
     const fileName = basename(filePath);
@@ -219,7 +219,7 @@
     console.log('[Workflow] ✅ 实时更新完成，已清空历史，只显示最新代码');
   }
 
-  /** 处理 LLM 输出文件路径：读取文件并提取代码块，标题带文件名 */
+  /* Runtime workflow documentation.
   async function handleLLMOutputFile(filePath) {
     const fileName = basename(filePath);
     const content = await readFileContent(filePath);
@@ -237,7 +237,7 @@
     }
   }
 
-  /** 四合一：更新覆盖率摘要框（覆盖成功/无新覆盖、当前覆盖率、本次多覆盖、成功用例） */
+  /* Runtime workflow documentation.
   function updateCovSummaryBox() {
     if (!covSummaryBox || !covEmptyEl) return;
     const s = latestCovSummary;
@@ -253,39 +253,39 @@
     covSummaryBox.innerHTML = parts.join('');
   }
 
-  /** 处理单行日志，根据模式分派到 3 块 */
+  /* Runtime workflow documentation.
   function handleLogLine(line) {
     const text = (line || '').trim();
     if (!text) return;
     const lower = text.toLowerCase();
 
-    // 粗暴一点：只要这一行里出现“汇编代码已保存到”，就先打 log
+    // UI/runtime helper.
     if (text.includes('汇编代码已保存到')) {
       console.log('[Workflow] 收到包含“汇编代码已保存到”的日志行:', text);
     }
 
-    // 检测任务开始，清空所有列表
+    // UI/runtime helper.
     if (/== 任务已启动 ==|正在启动任务|开始运行|启动新任务/.test(text)) {
       resetFlow();
       return;
     }
 
-    // 1) 检测到汇编文件保存路径，立即读取文件内容（实时更新）
-    // 支持多种格式：✅ 汇编代码已保存到: xxx.S 或 汇编代码已保存到：xxx.S（中文冒号）
+    // UI/runtime helper.
+    // UI/runtime helper.
     if (text.includes('汇编代码已保存到') && text.includes('.S')) {
-      // 尝试多种正则模式提取路径
+      // UI/runtime helper.
       let filePath = null;
       const patterns = [
         /汇编代码已保存到[:：]\s*([^\s]+\.S)/i,
         /汇编代码已保存到[:：]\s*(.+\.S)/i,
-        /([\/\w]+\.S)/i  // 最后的兜底：直接找路径格式
+        /([\/\w]+\.S)/i  // The final tip: find the path format directly
       ];
       
       for (const pattern of patterns) {
         const match = text.match(pattern);
         if (match && match[1]) {
           filePath = match[1].trim();
-          // 确保是完整路径
+          // UI/runtime helper.
           if (filePath.startsWith('/root/') || filePath.startsWith('./') || filePath.includes('testcase/') || filePath.includes('all_seed/')) {
             break;
           }
@@ -294,7 +294,7 @@
       
       if (filePath) {
         console.log('[Workflow] 🚀 实时检测到新汇编文件，立即读取:', filePath);
-        // 立即读取并显示（实时更新）
+        // UI/runtime helper.
         handleAssemblyFile(filePath);
         return;
       } else {
@@ -302,7 +302,7 @@
       }
     }
 
-    // 2) 检测到 LLM 输出文件路径，读取并提取代码块
+    // UI/runtime helper.
     const llmOutputMatch = text.match(/LLM 原始输出已写入:\s*(.+\.txt)/i);
     if (llmOutputMatch) {
       const filePath = llmOutputMatch[1].trim();
@@ -310,7 +310,7 @@
       return;
     }
 
-    // 3) LLM 生成用例相关（其他信息）
+    // UI/runtime helper.
     if (
       /正在调用 llm|llm 响应时间/.test(text) ||
       /生成的 asm 文件/.test(text) ||
@@ -320,7 +320,7 @@
       return;
     }
 
-    // 4) 编译命令 — 单块实时刷新，不追加
+    // UI/runtime helper.
     if (/完整命令:\s*sh\s+complier\.sh/i.test(text) || /执行命令:?\s*sh\s+complier\.sh/i.test(text)) {
       const match = text.match(/(?:完整命令|执行命令):?\s*(sh\s+complier\.sh\s+\S+)/i) || text.match(/(sh\s+complier\.sh\s+\S+)/i);
       const cmd = match ? match[1].trim() : text;
@@ -329,7 +329,7 @@
       renderCurrentCaseBlock();
       return;
     }
-    // 5) 仿真命令
+    // UI/runtime helper.
     if (/完整命令:.*(\.\/build\/emu|emu\s)/i.test(text)) {
       const match = text.match(/完整命令:\s*(.+)/);
       if (match) currentCase.simCmd = match[1].trim();
@@ -342,7 +342,7 @@
       return;
     }
 
-    // 验证流程：编译/仿真结果 — 实时刷新同一块
+    // UI/runtime helper.
     if (/验证流程:\s*编译成功/.test(text)) {
       currentCase.compileOk = '编译成功';
       renderCurrentCaseBlock();
@@ -373,7 +373,7 @@
       updateCovSummaryBox();
       return;
     }
-    // 无新覆盖时：解析用例名并显示「用例名 该case没有覆盖新的代码」
+    // UI/runtime helper.
     const noCovCaseMatch = text.match(/验证流程:\s*无覆盖用例:\s*(.+)/);
     if (noCovCaseMatch) {
       latestCovSummary.caseName = noCovCaseMatch[1].trim() + ' 该case没有覆盖新的代码';
@@ -387,7 +387,7 @@
       return;
     }
 
-    // 6) 覆盖率分析摘要：四项合并到一个框
+    // UI/runtime helper.
     if (/L2 模块组|L2Cache|L2TLB|L2Directory|L2Top/i.test(text)) {
       return;
     }
@@ -408,10 +408,10 @@
     }
     if (/当前模块覆盖了\s*\d+\s*行代码/.test(text)) return;
     if (/警告：新未覆盖行数/.test(text)) return;
-    // 以下不再显示：新统计行未覆盖、coverage.info 已更新、正在应用/更新覆盖率、合并文件等
+    // UI/runtime helper.
   }
 
-  /** 监听终端日志输出，做增量解析 */
+  /* Runtime workflow documentation.
   function setupLogListener() {
     const logOut = document.getElementById('logOut');
     if (!logOut) {
@@ -424,7 +424,7 @@
     let lastLen = 0;
     let lastContent = '';
 
-    // 使用 setInterval 定期检查 textContent 变化（更可靠）
+    // UI/runtime helper.
     const checkInterval = setInterval(() => {
       const currentContent = logOut.textContent || '';
       const currentLen = currentContent.length;
@@ -434,7 +434,7 @@
         lastLen = currentLen;
         lastContent = currentContent;
 
-        // 按行处理新增内容
+        // UI/runtime helper.
         const lines = delta.split('\n').filter(l => l.trim());
         if (lines.length > 0) {
           console.log('[Workflow] 检测到新增日志，行数:', lines.length);
@@ -443,9 +443,9 @@
           }
         }
       }
-    }, 200); // 每 200ms 检查一次
+    }, 200); // Check every 200ms
 
-    // 同时保留 MutationObserver 作为备用
+    // UI/runtime helper.
     const observer = new MutationObserver(() => {
       const currentContent = logOut.textContent || '';
       const currentLen = currentContent.length;
@@ -469,7 +469,7 @@
     console.log('[Workflow] 已同时启用 setInterval 和 MutationObserver 监听');
   }
 
-  /** 重置三个面板（任务开始时调用） */
+  /* Runtime workflow documentation.
   function resetFlow() {
     latestCovSummary = { status: '', rate: '', lines: '', caseName: '' };
     currentCase = { compileCmd: '', compileOk: '', simCmd: '', simOk: '' };
@@ -482,11 +482,11 @@
     }
   }
 
-  /** 从后端 API 获取最近生成的汇编代码（只保留最新一条） */
+  /* Runtime workflow documentation.
   async function fetchRecentAssemblyCodes() {
     const base = ensureApiBase();
     try {
-      const url = `${base}/api/recent-assembly-codes?limit=1`;  // 只获取最新1条
+      const url = `${base}/api/recent-assembly-codes?limit=1`;  // Get only the latest one
       console.log('[Workflow] 请求最近汇编代码:', url);
       const response = await fetch(url);
       
@@ -517,7 +517,7 @@
     }
   }
 
-  /** 初始化入口 */
+  /* Runtime workflow documentation.
   function init() {
     console.log('[Workflow] init 开始');
     genListEl = document.getElementById('flowGenList');
@@ -526,7 +526,7 @@
     covSummaryBox = document.getElementById('flowCovSummary');
     covEmptyEl = document.getElementById('flowCovEmpty');
 
-    // 获取 API Base，并监听变化（与 main.js 行为保持一致）
+    // UI/runtime helper.
     const apiBaseEl = document.getElementById('apiBase');
     if (apiBaseEl) {
       ensureApiBase();
@@ -539,23 +539,23 @@
     resetFlow();
     setupLogListener();
     
-    // 定期从后端获取最新生成的汇编代码（每 5 秒，作为兜底，确保不遗漏）
-    // 主要依赖日志实时触发，这里只是补充
-    // 注意：只保留最新一条，历史会自动清空
+    // UI/runtime helper.
+    // UI/runtime helper.
+    // UI/runtime helper.
     setInterval(() => {
       if (genListEl) {
         fetchRecentAssemblyCodes();
       }
     }, 5000);
     
-    // 立即获取一次（初始化时显示最新文件）
+    // UI/runtime helper.
     setTimeout(() => fetchRecentAssemblyCodes(), 1000);
 
-    // 监听任务开始按钮（额外保险）
+    // UI/runtime helper.
     const btnStartRun = document.getElementById('btnStartRun');
     if (btnStartRun) {
       btnStartRun.addEventListener('click', () => {
-        // 延迟一下，确保日志开始输出后再清空
+        // UI/runtime helper.
         setTimeout(() => {
           resetFlow();
         }, 500);

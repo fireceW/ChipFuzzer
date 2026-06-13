@@ -8,34 +8,34 @@ def count_percentage_prefix_by_module(verilog_code, prefix="%000000"):
     lines = verilog_code.splitlines()
     module_count = {}
     current_module = None
-    total_modules = 0  # 统计模块总数
+    total_modules = 0  # Total number of statistical modules
 
     for line in lines:
-        # 查找模块开始
+        # Find module start
         if "module " in line:
-            # 解析模块名称
-            current_module = line.split()[1].split("(")[0]  # 获取模块名
+            # Parse module name
+            current_module = line.split()[1].split("(")[0]  # Get module name
             module_count[current_module] = {
-                "count": 0,  # %000000 出现次数
-                "line_length": 0  # 行长度
+                "count": 0,  # %000000 number of occurrences
+                "line_length": 0  # line length
             }
-            total_modules += 1  # 模块总数加一
+            total_modules += 1  # Add one to the total number of modules
         
-        # 统计当前模块中的前缀
+        # Count prefixes in the current module
         if current_module:
             module_count[current_module]["count"] += line.count(prefix)
-            module_count[current_module]["line_length"] += len(line)  # 统计行长度
+            module_count[current_module]["line_length"] += len(line)  # Statistics line length
 
-        # 查找模块结束
+        # End of search module
         if "endmodule" in line:
-            current_module = None  # 重置当前模块
+            current_module = None  # Reset current module
 
-    # 按照前缀出现次数排序
+    # Sort by number of prefix occurrences
     sorted_modules = sorted(module_count.items(), key=lambda item: item[1]["count"], reverse=True)
     
     return sorted_modules, total_modules
 
-# 调用函数并打印结果
+# Call a function and print the result
 def getTheMostUncoveredModule(num, Coverage_filename_origin):
 
     filename = Coverage_filename_origin
@@ -46,8 +46,8 @@ def getTheMostUncoveredModule(num, Coverage_filename_origin):
     print(len(result))
     
     # for module, info in result: 
-    #     print(f"模块 '{module}' 中前缀 '{'%000000'}' 的出现次数: {info['count']}")
-    # print(f"总模块个数: {total_modules}")
+    # print(f"The number of occurrences of the prefix '{'%000000'}' in module '{module}': {info['count']}")
+    # print(f"Total number of modules: {total_modules}")
     print(result[num][0])
 
     return result[num][0]
@@ -56,19 +56,19 @@ def getTheMostUncoveredModule(num, Coverage_filename_origin):
 
 def getTopUncoveredModules(num, Coverage_filename_origin_dir):
     """
-    获取未覆盖代码最多的 num 个模块列表
+    Get a list of num modules with the most uncovered code
     
-    参数:
-        num: 要返回的模块数量
-        Coverage_filename_origin_dir: annotated 目录路径
+    parameter:
+        num: number of modules to return
+        Coverage_filename_origin_dir: annotated directory path
         
-    返回:
-        模块名称列表
+    return:
+        module name list
     """
     import os
     import glob
     
-    # 获取目录下所有 .sv 文件
+    # Get all .sv files in the directory
     sv_files = glob.glob(os.path.join(Coverage_filename_origin_dir, "*.sv"))
     
     module_uncovered_counts = []
@@ -80,19 +80,19 @@ def getTopUncoveredModules(num, Coverage_filename_origin_dir):
             with open(sv_file, "r", encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # 统计未覆盖代码行数
+            # Count the number of lines of code not covered
             uncovered_count = content.count("%000000")
             
-            # 过滤掉 PRINTF_COND 相关的行（这些通常不需要测试）
+            # Filter out PRINTF_COND related lines (these usually don't need to be tested)
             if uncovered_count > 0:
                 module_uncovered_counts.append((module_name, uncovered_count))
         except Exception as e:
             print(f"⚠️ 读取文件失败 {sv_file}: {e}")
     
-    # 按未覆盖代码行数排序（从多到少）
+    # Sort by number of uncovered lines of code (from most to least)
     module_uncovered_counts.sort(key=lambda x: x[1], reverse=True)
     
-    # 返回前 num 个模块名
+    # Returns the first num module names
     result = [m[0] for m in module_uncovered_counts[:num]]
     
     print(f"📊 未覆盖代码最多的 {num} 个模块:")

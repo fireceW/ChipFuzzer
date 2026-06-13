@@ -16,51 +16,51 @@ from pydantic import BaseModel
 
 app = FastAPI(title="ChipFuzzer Web API", version="0.1.0")
 
-# 添加 CORS 支持，允许所有来源访问 API（包括 file:// 协议）
+# Add CORS support to allow all origins to access the API (including file:// protocol)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有来源
-    allow_credentials=False,  # 使用 * 时不能设置 credentials
+    allow_origins=["*"],  # allow all sources
+    allow_credentials=False,  # Credentials cannot be set when using *
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ============================================================
-# 路径配置（可通过环境变量覆盖）
+# Path configuration (can be overridden through environment variables)
 # ============================================================
 
-# 项目根目录（ChipFuzzer_cursor 所在位置）
+# Project root directory (where ChipFuzzer_cursor is located)
 BASE_DIR = Path(os.environ.get("CHIPFUZZER_BASE", "/root/ChipFuzzer_cursor")).resolve()
 
-# 运行记录目录
+# Run record directory
 RUNS_DIR = Path(os.environ.get("CHIPFUZZER_RUNS", str(BASE_DIR / "runs"))).resolve()
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
-# 覆盖率缓存（避免频繁执行 genhtml）
+# Coverage caching (avoids frequent execution of genhtml)
 coverage_cache = {
     "data": None,
     "mtime": 0,
 }
 
-# 后台脚本和 Python 路径
+# Background scripts and Python paths
 BACKEND_SCRIPT = os.environ.get("CHIPFUZZER_BACKEND_SCRIPT", "xiangshan_fuzzing.py")
-PYTHON_BIN = os.environ.get("CHIPFUZZER_PYTHON", "python")  # 使用系统默认 Python
+PYTHON_BIN = os.environ.get("CHIPFUZZER_PYTHON", "python")  # Use system default Python
 
-# XiangShan 项目目录（用于覆盖率统计）
+# XiangShan project directory (for coverage statistics)
 COVERAGE_DIR = Path(os.environ.get("CHIPFUZZER_COVERAGE_DIR", "/root/XiangShan")).resolve()
 
-# 成功案例目录（在 ChipFuzzer_cursor 目录下）
+# Success case directory (under the ChipFuzzer_cursor directory)
 SUCCESS_SEED_DIR = Path("/root/ChipFuzzer_cursor/GJ_Success_Seed")
 
-# 日志目录
+# Log directory
 LOG_DIR = Path("/root/ChipFuzzer_cursor/GJ_log")
 
-# 统计数据目录
+# Statistics directory
 STATS_DIR = Path("/root/ChipFuzzer_cursor/GJ_log")
 
 
 def _run_log_path(run_id: str) -> Path:
-    # run_id 作为文件名前缀，保存到日志目录
+    # run_id is used as the file name prefix and is saved to the log directory
     safe = run_id.replace("\\", "_").replace("/", "_").strip()
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     return LOG_DIR / f"{safe}.log"
@@ -87,20 +87,20 @@ def _is_pid_running(pid: int) -> bool:
 class StartRunReq(BaseModel):
     module: str = "Bku"
     model: str = "qwen3:235b"
-    # origin: 用于读取初始未覆盖代码（基线）
+    # origin: used to read the initial uncovered code (baseline)
     coverage_filename_origin: str = "/root/XiangShan/logs/annotated/"
-    # later: 用于单次测试后的覆盖率检查
+    # later: used for coverage check after a single test
     coverage_filename_later: str = "/root/XiangShan/logs2/annotated/"
-    # global: 用于累积全局覆盖率
+    # global: used to accumulate global coverage
     global_annotated_dir: str = "/root/XiangShan/logs_global/annotated"
-    mode: str = "continue"  # continue 或 fresh
-    num: int = 100  # 模块索引或自动模式下的模块数量
-    max_iterations: int = 13  # 每模块最大尝试次数
-    auto_switch: bool = True  # 是否自动切换模块（默认开启）
-    use_spec: bool = False  # 是否使用 SPEC 文件分析
-    run_existing_seeds: bool = False  # 是否运行已有成功用例
+    mode: str = "continue"  # continue or fresh
+    num: int = 100  # Module index or number of modules in automatic mode
+    max_iterations: int = 13  # Maximum number of attempts per module
+    auto_switch: bool = True  # Whether to automatically switch modules (enabled by default)
+    use_spec: bool = False  # Whether to use SPEC file analysis
+    run_existing_seeds: bool = False  # Whether to run existing successful use cases
 
-# 记录当前运行模式，用于判断是否显示旧覆盖率
+# Record the current running mode and use it to determine whether to display the old coverage
 current_run_mode = {"mode": "continue", "fresh_start_time": 0}
 
 @app.get("/api/health")
@@ -111,14 +111,14 @@ def health() -> dict:
 @app.get("/api/success-seeds")
 def success_seeds() -> dict:
     """
-    获取成功案例统计信息
-    统计 GJ_Success_Seed 目录下的文件数量
+    Get statistics on successful cases
+    Count the number of files in the GJ_Success_Seed directory
     """
     if not SUCCESS_SEED_DIR.exists():
         SUCCESS_SEED_DIR.mkdir(parents=True, exist_ok=True)
         return {"count": 0, "files": []}
     
-    # 统计 .S 和 .asm 文件
+    # Statistics .S and .asm files
     files = [
         f.name for f in SUCCESS_SEED_DIR.iterdir()
         if f.is_file() and f.suffix.lower() in ('.s', '.asm', '.S')
@@ -126,7 +126,7 @@ def success_seeds() -> dict:
     
     return {
         "count": len(files),
-        "files": sorted(files, reverse=True)[:20]  # 只返回最近 20 个文件名
+        "files": sorted(files, reverse=True)[:20]  # Only the most recent 20 filenames are returned
     }
 
 
@@ -143,18 +143,18 @@ def list_runs() -> dict:
 @app.get("/api/recent-assembly-codes")
 def get_recent_assembly_codes(limit: int = Query(10, ge=1, le=50)) -> dict:
     """
-    获取最近生成的汇编代码片段（关键部分）
-    返回最近 N 个 .S 文件的关键代码（前5行+后5行）
-    同时扫描 testcase/ 和 all_seed/ 两个目录
+    Get the most recently generated assembly code snippet (critical part)
+    Return the key codes of the latest N .S files (the first 5 lines + the last 5 lines)
+    Scan both testcase/ and all_seed/ directories at the same time
     """
     try:
-        # 扫描两个目录
+        # Scan two directories
         search_dirs = [
             Path("/root/XiangShan/testcase"),
             Path("/root/XiangShan/all_seed")
         ]
         
-        # 获取所有 .S 文件，按修改时间排序
+        # Get all .S files, sorted by modification time
         asm_files = []
         for testcase_dir in search_dirs:
             if not testcase_dir.exists():
@@ -173,7 +173,7 @@ def get_recent_assembly_codes(limit: int = Query(10, ge=1, le=50)) -> dict:
         if not asm_files:
             return {"codes": [], "error": "未找到 .S 文件"}
         
-        # 按修改时间倒序排列，取最近 N 个
+        # Arrange in reverse order of modification time, taking the most recent N
         asm_files.sort(key=lambda x: x["mtime"], reverse=True)
         asm_files = asm_files[:limit]
         
@@ -186,7 +186,7 @@ def get_recent_assembly_codes(limit: int = Query(10, ge=1, le=50)) -> dict:
                 if not content:
                     continue
                 
-                # 提取关键代码（前10行+后10行，增加信息量）
+                # Extract key codes (first 10 lines + last 10 lines, increase the amount of information)
                 lines = [l for l in content.split('\n') if l.strip()]
                 if len(lines) <= 20:
                     key_code = content
@@ -216,27 +216,27 @@ def get_recent_assembly_codes(limit: int = Query(10, ge=1, le=50)) -> dict:
 @app.get("/api/files/read")
 def read_file(path: str = Query(..., description="文件路径")) -> dict:
     """
-    安全读取文件内容（仅允许读取指定目录下的文件）
-    允许的目录：
-    - /root/XiangShan/testcase/  (汇编文件)
-    - /root/ChipFuzzer_cursor/LLMoutput/  (LLM 输出文件)
+    Safely read file contents (only files in the specified directory are allowed to be read)
+    Allowed directories:
+    - /root/XiangShan/testcase/ (assembly file)
+    - /root/ChipFuzzer_cursor/LLMoutput/ (LLM output file)
     """
     try:
         file_path = Path(path).resolve()
         
-        # 安全检查：只允许读取指定目录
+        # Security check: only allow reading of specified directories
         allowed_dirs = [
             Path("/root/XiangShan/testcase").resolve(),
-            Path("/root/XiangShan/all_seed").resolve(),  # 添加 all_seed 目录
+            Path("/root/XiangShan/all_seed").resolve(),  # Add all_seed directory
             Path("/root/ChipFuzzer_cursor/LLMoutput").resolve(),
-            Path("/root/ChipFuzzer/LLMoutput").resolve(),  # 兼容旧路径
+            Path("/root/ChipFuzzer/LLMoutput").resolve(),  # Compatible with old paths
         ]
         
         is_allowed = False
         file_path_str = str(file_path)
         for allowed_dir in allowed_dirs:
             allowed_dir_str = str(allowed_dir)
-            # 确保路径以目录路径开头（后面跟 / 或者是完全匹配）
+            # Make sure the path starts with the directory path (followed by / or an exact match)
             if file_path_str == allowed_dir_str or file_path_str.startswith(allowed_dir_str + '/'):
                 is_allowed = True
                 break
@@ -250,11 +250,11 @@ def read_file(path: str = Query(..., description="文件路径")) -> dict:
         if not file_path.is_file():
             raise HTTPException(status_code=400, detail=f"不是文件: {path}")
         
-        # 限制文件大小（最大 1MB）
+        # Limit file size (max 1MB)
         if file_path.stat().st_size > 1024 * 1024:
             raise HTTPException(status_code=400, detail="文件过大（超过 1MB）")
         
-        # 读取文件内容
+        # Read file contents
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
         
@@ -271,11 +271,11 @@ def read_file(path: str = Query(..., description="文件路径")) -> dict:
 @app.post("/api/runs/start")
 def start_run(req: StartRunReq) -> dict:
     """
-    启动后台程序：
+    Start the background program:
       python xiangshan_fuzzing.py --num <num> --module <module> --model <model> ...
 
-    产物：
-      日志: /root/ChipFuzzer/GJ_log/<runId>.log
+    product:
+      Log: /root/ChipFuzzer/GJ_log/<runId>.log
       PID:  /root/ChipFuzzer_cursor/runs/<runId>/pid
     """
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
@@ -283,19 +283,19 @@ def start_run(req: StartRunReq) -> dict:
     run_dir.mkdir(parents=True, exist_ok=True)
     log_path = _run_log_path(run_id)
     
-    # 记录运行模式
+    # Record operating mode
     current_run_mode["mode"] = req.mode
     if req.mode == "fresh":
         current_run_mode["fresh_start_time"] = time.time()
-        # 清除覆盖率缓存
+        # Clear coverage cache
         coverage_cache["data"] = None
         coverage_cache["mtime"] = 0
     
-    # 创建任务专属的 .dat 文件
+    # Create task-specific .dat files
     dat_file_path = RUNS_DIR / run_id / f"{run_id}.dat"
     dat_file_path.write_text(f"runId: {run_id}\n", encoding="utf-8")
 
-    # 构建完整命令行参数
+    # Build complete command line parameters
     cmd = [
         PYTHON_BIN,
         BACKEND_SCRIPT,
@@ -307,18 +307,18 @@ def start_run(req: StartRunReq) -> dict:
         "--mode", req.mode,
         "--max_iterations", str(req.max_iterations),
         "--num", str(req.num),
-        "--dat", str(dat_file_path),  # 添加 .dat 文件路径参数
+        "--dat", str(dat_file_path),  # Add .dat file path parameter
     ]
     
-    # 如果启用自动切换模块
+    # If automatic switching module is enabled
     if req.auto_switch:
         cmd.append("--auto_switch")
     
-    # 如果启用 SPEC 文件分析
+    # If SPEC file analysis is enabled
     if req.use_spec:
         cmd.append("--use_spec")
     
-    # 如果启用运行已有成功用例
+    # If enabled, there are already successful use cases running
     if req.run_existing_seeds:
         cmd.append("--run_existing_seeds")
     
@@ -351,7 +351,7 @@ def stop_run(run_id: str) -> dict:
     if not _is_pid_running(pid):
         return {"runId": run_id, "stopped": True, "alreadyStopped": True}
 
-    # 先温和停止进程组
+    # Stop the process group gently first
     try:
         os.killpg(pid, signal.SIGTERM)
     except Exception:
@@ -379,7 +379,7 @@ def run_status(run_id: str) -> dict:
 
     running = _is_pid_running(pid) if pid else False
 
-    # 简化版状态判定：从日志尾部猜测（可按你的真实输出改进）
+    # Simplified version of status determination: guess from the end of the log (can be improved based on your real output)
     tail = ""
     if log_path.exists():
         try:
@@ -400,15 +400,15 @@ def run_status(run_id: str) -> dict:
 @app.get("/api/runs/{run_id}/coverage")
 def run_coverage(run_id: str) -> dict:
     """
-    获取总体覆盖率信息
-    直接从 sum_gj.dat 生成，确保数据一致性
+    Get overall coverage information
+    Generated directly from sum_gj.dat to ensure data consistency
     """
     sum_dat_path = COVERAGE_DIR / "sum_gj.dat"
     coverage_info_path = COVERAGE_DIR / "coverage.info"
     
-    # 检查 sum_gj.dat 是否存在（这是累积覆盖率的唯一来源）
+    # Check if sum_gj.dat exists (this is the only source of cumulative coverage)
     if not sum_dat_path.exists() or sum_dat_path.stat().st_size == 0:
-        # 检查是否是 Fresh 模式：sum_gj.dat 不存在且 annotated 目录为空
+        # Check if it is Fresh mode: sum_gj.dat does not exist and the annotated directory is empty
         annotated_dir = COVERAGE_DIR / "logs_global" / "annotated"
         is_fresh_mode = False
         if annotated_dir.exists():
@@ -416,7 +416,7 @@ def run_coverage(run_id: str) -> dict:
             sv_files = glob.glob(str(annotated_dir / "*.sv"))
             is_fresh_mode = len(sv_files) == 0
         else:
-            # annotated 目录不存在，也认为是 Fresh 模式
+            # The annotated directory does not exist and is also considered to be in Fresh mode.
             is_fresh_mode = True
         
         return {
@@ -427,17 +427,17 @@ def run_coverage(run_id: str) -> dict:
             "message": "Fresh 模式：等待首次测试数据" if is_fresh_mode else "暂无覆盖率数据（sum_gj.dat 不存在）",
         }
     
-    # 检查文件修改时间
+    # Check file modification time
     current_mtime = sum_dat_path.stat().st_mtime
     
-    # 检查文件修改时间，如果未变化则返回缓存
+    # Check the file modification time and return to the cache if it has not changed
     if coverage_cache["data"] and coverage_cache["mtime"] == current_mtime:
         return coverage_cache["data"]
     
     try:
         import re
         
-        # 先更新 coverage.info（从 sum_gj.dat 生成）
+        # Update coverage.info first (generated from sum_gj.dat)
         update_result = subprocess.run(
             ["verilator_coverage", "-write-info", "coverage.info", str(sum_dat_path)],
             cwd=str(COVERAGE_DIR),
@@ -455,7 +455,7 @@ def run_coverage(run_id: str) -> dict:
                 "message": f"更新 coverage.info 失败: {update_result.stderr}",
             }
         
-        # 使用 genhtml 获取覆盖率百分比
+        # Get coverage percentage using genhtml
         result = subprocess.run(
             ["genhtml", "coverage.info", "--output-directory", "coverage_gj"],
             cwd=str(COVERAGE_DIR),
@@ -466,7 +466,7 @@ def run_coverage(run_id: str) -> dict:
         
         output = result.stdout + result.stderr
         
-        # 解析 "Overall coverage rate: lines......: 72.2% (463483 of 642121 lines)"
+        # Parse "Overall coverage rate: lines......: 72.2% (463483 of 642121 lines)"
         match = re.search(r'lines\.+:\s*([\d.]+)%\s*\((\d+)\s+of\s+(\d+)\s+lines\)', output)
         
         if match:
@@ -479,14 +479,14 @@ def run_coverage(run_id: str) -> dict:
                 "total_lines": total,
                 "sum_dat_mtime": current_mtime,
             }
-            # 更新缓存（只有成功解析时才更新）
+            # Update cache (only updated if parsed successfully)
             coverage_cache["data"] = data
             coverage_cache["mtime"] = current_mtime
             return data
         else:
-            # 如果解析失败，检查是否有缓存数据
+            # If parsing fails, check if there is cached data
             if coverage_cache["data"] and coverage_cache["data"].get("coverage_percentage", 0) > 0:
-                # 有有效缓存，返回缓存数据并记录警告
+                # There is a valid cache, return the cached data and log a warning
                 print(f"⚠️ genhtml 输出解析失败，使用缓存数据: {coverage_cache['data']['coverage_percentage']:.2f}%")
                 print(f"   genhtml 输出（前500字符）: {output[:500]}")
                 return {
@@ -495,7 +495,7 @@ def run_coverage(run_id: str) -> dict:
                     "warning": "genhtml 输出解析失败，使用上次有效值"
                 }
             else:
-                # 没有有效缓存，返回错误状态（但不返回0，避免误导）
+                # There is no valid cache, and an error status is returned (but does not return 0 to avoid misleading)
                 print(f"⚠️ genhtml 输出解析失败，且无有效缓存数据")
                 print(f"   genhtml 输出（前500字符）: {output[:500]}")
                 return {
@@ -507,12 +507,12 @@ def run_coverage(run_id: str) -> dict:
                 }
         
     except subprocess.TimeoutExpired:
-        # genhtml 执行超时，但如果有缓存就返回缓存的数据
+        # The execution of genhtml times out, but if there is cache, the cached data will be returned.
         if coverage_cache["data"]:
             return coverage_cache["data"]
         raise HTTPException(status_code=408, detail="genhtml 执行超时且无缓存数据")
     except FileNotFoundError:
-        # genhtml 命令不存在，尝试直接返回缓存或默认值
+        # The genhtml command does not exist, try to return the cache or default value directly
         if coverage_cache["data"]:
             return coverage_cache["data"]
         return {
@@ -524,7 +524,7 @@ def run_coverage(run_id: str) -> dict:
         raise HTTPException(status_code=500, detail=f"获取覆盖率失败: {str(e)}")
 
 
-# L2 模块组配置
+# L2 module group configuration
 L2_MODULES = [
     "L2Cache",
     "L2DataStorage",
@@ -538,7 +538,7 @@ L2_MODULES = [
 ]
 
 def get_module_coverage_stats(annotated_dir: Path, module_name: str) -> dict:
-    """获取单个模块的覆盖率统计"""
+    """Get coverage statistics for a single module"""
     sv_file = annotated_dir / f"{module_name}.sv"
     
     if not sv_file.exists():
@@ -552,20 +552,20 @@ def get_module_coverage_stats(annotated_dir: Path, module_name: str) -> dict:
         with open(sv_file, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 stripped = line.strip()
-                # 跳过空行和纯注释行
+                # Skip empty lines and plain comment lines
                 if not stripped or stripped.startswith('//'):
                     continue
                 
-                # 检查覆盖率标记（可能在行首，也可能在行中）
-                # Verilator 覆盖率标记格式：%000000 或 %000001 等
+                # Check for coverage markers (maybe at the beginning of the line or in the middle of the line)
+                # Verilator coverage tag format: %000000 or %000001, etc.
                 if '%' in stripped:
-                    # 提取覆盖率标记（格式：%后跟6位数字）
+                    # Extract coverage tags (format: % followed by 6 digits)
                     import re
                     coverage_markers = re.findall(r'%(\d{6})', stripped)
                     
                     if coverage_markers:
                         total_lines += 1
-                        # 检查是否有非零的覆盖率标记（表示已覆盖）
+                        # Check if there is a non-zero coverage flag (indicating coverage)
                         has_covered = any(marker != '000000' for marker in coverage_markers)
                         
                         if has_covered:
@@ -589,7 +589,7 @@ def get_module_coverage_stats(annotated_dir: Path, module_name: str) -> dict:
 
 @app.get("/api/run-mode")
 def get_run_mode() -> dict:
-    """获取当前运行模式"""
+    """Get the current running mode"""
     return {
         "mode": current_run_mode["mode"],
         "fresh_start_time": current_run_mode["fresh_start_time"],
@@ -598,10 +598,10 @@ def get_run_mode() -> dict:
 
 def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List[str]) -> dict:
     """
-    直接从 coverage.info 文件解析指定模块的覆盖率统计
-    这样可以确保与总体覆盖率使用相同的数据源
+    Parse coverage statistics for a specified module directly from the coverage.info file
+    This ensures that the same data source is used for overall coverage
     
-    返回:
+    return:
         {
             "module_name": {
                 "exists": bool,
@@ -626,24 +626,24 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
     
     current_file = None
     current_module = None
-    file_lines = {}  # 记录每个文件的行覆盖情况
+    file_lines = {}  # Record line coverage for each file
     
     try:
         with open(coverage_info_path, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
                 
-                # 解析源文件路径 (SF:)
+                # Resolve source file path (SF:)
                 if line.startswith('SF:'):
                     file_path = line[3:].strip()
                     file_name = Path(file_path).name
                     current_file = file_path
                     current_module = None
                     
-                    # 检查是否是 L2 模块文件
-                    # 匹配规则：文件名完全匹配 {module_name}.sv 或路径中包含模块名
+                    # Check if it is an L2 module file
+                    # Matching rules: The file name exactly matches {module_name}.sv or the path contains the module name
                     for module_name in module_names:
-                        # 精确匹配文件名（如 L2Cache.sv）
+                        # Exact file name match (e.g. L2Cache.sv)
                         if file_name == f"{module_name}.sv":
                             current_module = module_name
                             if current_file not in file_lines:
@@ -652,7 +652,7 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
                                     "lines": {}
                                 }
                             break
-                        # 或者路径中包含模块名（处理带后缀的情况，如 L2DataStorage_1.sv）
+                        # Or the path contains the module name (handling the case with suffix, such as L2DataStorage_1.sv)
                         elif f"/{module_name}.sv" in file_path or f"\\{module_name}.sv" in file_path:
                             current_module = module_name
                             if current_file not in file_lines:
@@ -662,7 +662,7 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
                                 }
                             break
                 
-                # 解析行覆盖率数据 (DA:line_number,execution_count)
+                # Parse line coverage data (DA:line_number,execution_count)
                 elif line.startswith('DA:') and current_module and current_file:
                     try:
                         parts = line[3:].strip().split(',')
@@ -680,7 +680,7 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
                     except (ValueError, IndexError):
                         continue
         
-        # 统计每个模块的覆盖率
+        # Count the coverage of each module
         for file_path, file_data in file_lines.items():
             module_name = file_data["module"]
             if module_name not in result:
@@ -696,7 +696,7 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
             result[module_name]["covered_lines"] += covered
             result[module_name]["uncovered_lines"] += uncovered
         
-        # 计算每个模块的覆盖率百分比
+        # Calculate coverage percentage for each module
         for module_name in module_names:
             stats = result[module_name]
             if stats["total_lines"] > 0:
@@ -713,10 +713,10 @@ def parse_coverage_info_for_modules(coverage_info_path: Path, module_names: List
 @app.get("/api/l2-coverage")
 def l2_module_coverage() -> dict:
     """
-    获取 L2 模块组的覆盖率统计
-    直接从 coverage.info 文件解析，确保与总体覆盖率使用相同的数据源
+    Get coverage statistics for L2 module group
+    Parse directly from the coverage.info file, ensuring the same data source is used for overall coverage
     """
-    # 先确保 coverage.info 是最新的（从 sum_gj.dat 生成）
+    # First make sure coverage.info is up to date (generated from sum_gj.dat)
     sum_dat_path = COVERAGE_DIR / "sum_gj.dat"
     coverage_info_path = COVERAGE_DIR / "coverage.info"
     
@@ -733,12 +733,12 @@ def l2_module_coverage() -> dict:
             "message": "sum_gj.dat 不存在",
         }
     
-    # 检查是否需要更新 coverage.info
+    # Check if coverage.info needs to be updated
     sum_dat_mtime = sum_dat_path.stat().st_mtime
     coverage_info_mtime = coverage_info_path.stat().st_mtime if coverage_info_path.exists() else 0
     
     if not coverage_info_path.exists() or sum_dat_mtime > coverage_info_mtime:
-        # 更新 coverage.info
+        # Update coverage.info
         try:
             update_result = subprocess.run(
                 ["verilator_coverage", "-write-info", "coverage.info", str(sum_dat_path)],
@@ -772,10 +772,10 @@ def l2_module_coverage() -> dict:
                 "message": f"更新 coverage.info 异常: {str(e)}",
             }
     
-    # 从 coverage.info 解析 L2 模块统计
+    # Parse L2 module statistics from coverage.info
     modules_stats = parse_coverage_info_for_modules(coverage_info_path, L2_MODULES)
     
-    # 计算汇总统计
+    # Calculate summary statistics
     total_lines = sum(s["total_lines"] for s in modules_stats.values())
     covered_lines = sum(s["covered_lines"] for s in modules_stats.values())
     uncovered_lines = sum(s["uncovered_lines"] for s in modules_stats.values())
@@ -796,7 +796,7 @@ def l2_module_coverage() -> dict:
 @app.get("/api/global-stats")
 def global_stats() -> dict:
     """
-    获取全局覆盖率统计信息（从全局累积目录读取）
+    Get global coverage statistics (read from the global accumulation directory)
     """
     annotated_dir = COVERAGE_DIR / "logs_global" / "annotated"
     sum_dat_file = COVERAGE_DIR / "sum_gj.dat"
@@ -811,7 +811,7 @@ def global_stats() -> dict:
         result["sum_dat_size"] = stat.st_size
         result["sum_dat_mtime"] = stat.st_mtime
     
-    # 统计总未覆盖行数
+    # Count the total number of uncovered rows
     total_uncovered = 0
     if annotated_dir.exists():
         for sv_file in annotated_dir.glob("*.sv"):
@@ -854,14 +854,14 @@ def run_logs(run_id: str, cursor: Optional[str] = None) -> JSONResponse:
 @app.get("/api/runs/{run_id}/statistics")
 def get_statistics(run_id: str) -> dict:
     """
-    获取运行统计信息
-    优先读取 statistics_<run_id>.json（当前任务专用），若无则按 run_id 内容匹配，再回退到最新文件
+    Get running statistics
+    Read statistics_<run_id>.json first (dedicated to the current task). If not, match according to run_id content, and then fall back to the latest file.
     """
     import json
     import logging
     
     try:
-        # 1) 优先直接按 run_id 命名的文件读取（后端每次保存都会写这份，确保“成功覆盖 case 数”等与当前任务一致）
+        # 1) Prioritize reading files named directly by run_id (the backend will write this file every time it is saved to ensure that the "number of successfully covered cases" is consistent with the current task)
         safe_run_id = run_id.replace("\\", "_").replace("/", "_").replace("..", "_").strip()
         run_id_file = STATS_DIR / f"statistics_{safe_run_id}.json"
         if run_id_file.exists():
@@ -901,7 +901,7 @@ def get_statistics(run_id: str) -> dict:
                 "debug": {"stats_file": str(run_id_file), "source": "run_id_file"},
             }
         
-        # 2) 回退：按内容中的 run_id 匹配
+        # 2) Fallback: Match by run_id in the content
         stats_files = sorted(STATS_DIR.glob("statistics_*.json"), reverse=True)
         if not stats_files:
             return {
@@ -923,7 +923,7 @@ def get_statistics(run_id: str) -> dict:
             except Exception:
                 continue
         
-        # 未找到当前 run_id 的统计文件时，不退回“最新文件”（避免用其他任务的 0 覆盖本任务从日志得到的值）
+        # When the statistics file of the current run_id is not found, the "latest file" will not be returned (to avoid overwriting the value obtained by this task from the log with 0 from other tasks)
         if matched_file is None:
             logging.info(f"[统计API] 未找到 run_id={run_id} 的统计文件，返回 no_data")
             return {
@@ -934,34 +934,34 @@ def get_statistics(run_id: str) -> dict:
         
         logging.info(f"[统计API] 找到匹配: {matched_file}, run_id={run_id}")
         
-        # 读取统计文件
+        # Read statistics file
         with open(matched_file, 'r', encoding='utf-8') as f:
             stats_data = json.load(f)
         
-        # 计算总体统计
+        # Calculate overall statistics
         summary = stats_data.get("summary", {})
         total_llm = summary.get("total_llm_generations", 0)
         total_emulator_success = summary.get("total_emulator_success", 0)
         total_coverage_improved = summary.get("total_coverage_improved", 0)
         
-        # 调试信息：记录读取的数据
+        # Debug information: record the data read
         logging.info(f"[统计API] 读取数据: total_llm={total_llm}, total_emulator_success={total_emulator_success}, total_coverage_improved={total_coverage_improved}")
         
-        # 计算编译成功率（需要从日志中统计，这里先返回模拟器成功率）
-        # 编译成功率 = 模拟器成功执行次数 / LLM 生成次数
+        # Calculate the compilation success rate (statistics need to be collected from the log, here first return the simulator success rate)
+        # Compilation success rate = number of successful simulator executions / number of LLM generation times
         compile_success_rate = 0.0
         if total_llm > 0:
             compile_success_rate = (total_emulator_success / total_llm) * 100
         
-        # 模拟器执行成功率（假设所有成功编译的都会执行模拟器）
-        emulator_success_rate = compile_success_rate  # 暂时相同，后续可以从日志中更精确统计
+        # Simulator execution success rate (assuming that all successful compilations will execute the simulator)
+        emulator_success_rate = compile_success_rate  # The same for now, more accurate statistics can be obtained from the log later.
         
-        # 成功覆盖的 case 占 LLM 生成次数的比例
+        # The ratio of successfully covered cases to the number of LLM generation times
         coverage_improved_rate = 0.0
         if total_llm > 0:
             coverage_improved_rate = (total_coverage_improved / total_llm) * 100
         
-        # 获取覆盖率数据
+        # Get coverage data
         all_coverage_data = []
         for module_data in stats_data.get("modules", []):
             module_stats = module_data.get("statistics", {})
@@ -969,7 +969,7 @@ def get_statistics(run_id: str) -> dict:
                 coverage_data = module_stats.get("coverage_data", [])
                 all_coverage_data.extend(coverage_data)
         
-        # 按时间排序
+        # Sort by time
         all_coverage_data.sort(key=lambda x: x.get("timestamp", 0))
         
         result = {
@@ -990,7 +990,7 @@ def get_statistics(run_id: str) -> dict:
                 }
                 for m in stats_data.get("modules", [])
             ],
-            "coverage_data": all_coverage_data[-100:],  # 只返回最近100个数据点
+            "coverage_data": all_coverage_data[-100:],  # Only return the most recent 100 data points
             "debug": {
                 "stats_file": str(matched_file),
                 "files_found": len(stats_files),
@@ -1020,9 +1020,9 @@ async def run_stream(run_id: str, request: Request) -> StreamingResponse:
       event: log
       data: <line>
 
-    说明：
-    - 这是最小实现：从日志文件尾部增量读取
-    - 生产建议：加鉴权 + Nginx 同域反代；不要把 /api 裸奔到公网
+    illustrate:
+    - This is the minimal implementation: incremental reading from the tail of the log file
+    - Production suggestions: Add authentication + Nginx same domain reverse generation; do not run /api naked to the public network
     """
 
     log_path = _run_log_path(run_id)
@@ -1030,7 +1030,7 @@ async def run_stream(run_id: str, request: Request) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="log not found")
 
     async def gen():
-        # 从文件开头开始，发送完整日志历史
+        # Starting from the beginning of the file, send the complete log history
         pos = 0
         yield "event: status\ndata: {\"state\":\"running\"}\n\n"
 
@@ -1045,7 +1045,7 @@ async def run_stream(run_id: str, request: Request) -> StreamingResponse:
                 break
 
             if size < pos:
-                # 文件被重写
+                # File was rewritten
                 pos = 0
 
             if size > pos:
@@ -1056,7 +1056,7 @@ async def run_stream(run_id: str, request: Request) -> StreamingResponse:
 
                 text = data.decode(errors="ignore")
                 for ln in text.splitlines():
-                    # SSE 需要逐行推送
+                    # SSE requires row-by-row push
                     yield f"event: log\ndata: {ln}\n\n"
 
             await asyncio.sleep(0.35)

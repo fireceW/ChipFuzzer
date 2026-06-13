@@ -149,7 +149,7 @@ b{font-weight:700}
 .btn--sm{padding:8px 10px; border-radius:12px; font-size:13px}
 .btn[aria-disabled="true"]{opacity:.6; pointer-events:none}
 
-/* ----- Hero：加宽、大字、减少两侧空 ----- */
+/* UI styling block. */
 .hero{
   padding: 80px 0 56px;
   text-align: center;
@@ -247,7 +247,7 @@ b{font-weight:700}
   background: rgba(124,92,255,.06);
 }
 
-/* 保留：其他区块可能用到的 .stats / .stat */
+/* UI styling block. */
 .stats{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
@@ -365,7 +365,7 @@ b{font-weight:700}
 }
 
 .section{padding: 46px 0}
-/* hero 与下方内容衔接：过渡线、统一层级、不抢主标题 */
+/* UI styling block. */
 .section--after-hero{
   padding-top: 44px;
   padding-bottom: 48px;
@@ -538,7 +538,7 @@ select.field__input{
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
 }
 
-/* 下拉选项样式 - 确保文字清晰可读 */
+/* UI styling block. */
 select.field__input option{
   background-color: #1e293b;
   color: #f1f5f9;
@@ -682,7 +682,7 @@ select.field__input option{
 }
 
 
-/* L2 模块覆盖率样式 */
+/* UI styling block. */
 .l2-modules {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -738,7 +738,7 @@ select.field__input option{
   min-height: 150px;
 }
 
-/* LLM 用例框：加高 + 不要紫色下拉框，内容直接全部显示 */
+/* UI styling block. */
 .workflow-summary-card--llm {
   min-height: 420px;
 }
@@ -795,7 +795,7 @@ select.field__input option{
   }
 }
 
-/* 流程输出样式 - 优化版 */
+/* UI styling block. */
 .workflow-output-container {
   margin-top: 20px;
 }
@@ -821,7 +821,7 @@ select.field__input option{
   font-size: 12px;
 }
 
-/* 每个步骤内部的小型日志面板 */
+/* UI styling block. */
 .step-log {
   display: none;
   margin-top: 8px;
@@ -870,7 +870,7 @@ select.field__input option{
   background: var(--primary2);
 }
 
-/* 输出项样式优化 */
+/* UI styling block. */
 .workflow-output-item {
   margin-bottom: 10px;
   padding: 10px;
@@ -885,7 +885,7 @@ select.field__input option{
   transform: translateX(2px);
 }
 
-/* 覆盖率分析摘要：四合一框 */
+/* UI styling block. */
 .workflow-cov-summary-box {
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.03);
@@ -908,7 +908,7 @@ select.field__input option{
   font-weight: 500;
 }
 
-/* 验证流程：一个 case 一块（编译命令、编译是否成功、仿真命令、仿真是否成功） */
+/* UI styling block. */
 .workflow-case-block .workflow-case-rows {
   display: flex;
   flex-direction: column;
@@ -986,9 +986,9 @@ select.field__input option{
   border-radius: 3px;
 }
 
-/* 已在上面 .workflow-summary-card--llm 区块统一设置 */
+/* UI styling block. */
 
-/* 响应式调整 */
+/* UI styling block. */
 @media (max-width: 768px) {
   .workflow-steps-container {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

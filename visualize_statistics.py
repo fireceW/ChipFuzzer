@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-统计可视化脚本
-从统计数据 JSON 文件生成曲线图，展示：
-1. LLM 生成次数
-2. 模拟器成功执行次数
-3. 覆盖率增长曲线
+Statistical visualization script
+Generate a graph from a statistics JSON file showing:
+1. LLM generation times
+2. Number of successful executions of the simulator
+3. Coverage growth curve
 """
 
 import json
@@ -15,24 +15,24 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-# 设置中文字体
+# Set Chinese font
 plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS']
 plt.rcParams['axes.unicode_minus'] = False
 
 
 def load_statistics(json_file):
-    """加载统计数据"""
+    """Load statistics"""
     with open(json_file, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
 def plot_statistics(stats_data, output_file=None):
-    """生成统计图表"""
-    # 创建图表
+    """Generate statistical charts"""
+    # Create chart
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle('ChipFuzzer 统计报告', fontsize=16, fontweight='bold')
     
-    # 1. LLM 生成次数和模拟器成功执行次数（柱状图）
+    # 1. Number of LLM generation and number of successful simulator executions (bar chart)
     ax1 = axes[0, 0]
     modules = []
     llm_counts = []
@@ -59,7 +59,7 @@ def plot_statistics(stats_data, output_file=None):
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
-    # 2. 总体统计（饼图）
+    # 2. Overall statistics (pie chart)
     ax2 = axes[0, 1]
     summary = stats_data.get("summary", {})
     total_llm = summary.get("total_llm_generations", 0)
@@ -76,7 +76,7 @@ def plot_statistics(stats_data, output_file=None):
         ax2.text(0.5, 0.5, '暂无数据', ha='center', va='center', transform=ax2.transAxes)
         ax2.set_title('总体统计分布')
     
-    # 3. 覆盖率增长曲线（时间序列）
+    # 3. Coverage growth curve (time series)
     ax3 = axes[1, 0]
     all_coverage_data = []
     
@@ -85,7 +85,7 @@ def plot_statistics(stats_data, output_file=None):
         coverage_data = module_stats.get("coverage_data", [])
         all_coverage_data.extend(coverage_data)
     
-    # 按时间排序
+    # Sort by time
     all_coverage_data.sort(key=lambda x: x.get("timestamp", 0))
     
     if all_coverage_data:
@@ -98,7 +98,7 @@ def plot_statistics(stats_data, output_file=None):
         ax3.set_title('覆盖率增长曲线')
         ax3.grid(True, alpha=0.3)
         
-        # 格式化 x 轴时间
+        # Format x-axis time
         ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
         ax3.xaxis.set_major_locator(mdates.AutoDateLocator())
         plt.setp(ax3.xaxis.get_majorticklabels(), rotation=45, ha='right')
@@ -106,7 +106,7 @@ def plot_statistics(stats_data, output_file=None):
         ax3.text(0.5, 0.5, '暂无覆盖率数据', ha='center', va='center', transform=ax3.transAxes)
         ax3.set_title('覆盖率增长曲线')
     
-    # 4. 未覆盖代码行数变化曲线
+    # 4. Change curve of the number of lines of code not covered
     ax4 = axes[1, 1]
     
     if all_coverage_data:
@@ -118,12 +118,12 @@ def plot_statistics(stats_data, output_file=None):
         ax4.set_title('未覆盖代码行数变化曲线')
         ax4.grid(True, alpha=0.3)
         
-        # 格式化 x 轴时间
+        # Format x-axis time
         ax4.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
         ax4.xaxis.set_major_locator(mdates.AutoDateLocator())
         plt.setp(ax4.xaxis.get_majorticklabels(), rotation=45, ha='right')
         
-        # 反转 y 轴，使下降表示改进
+        # Invert the y-axis so that decline represents improvement
         ax4.invert_yaxis()
     else:
         ax4.text(0.5, 0.5, '暂无数据', ha='center', va='center', transform=ax4.transAxes)
@@ -131,7 +131,7 @@ def plot_statistics(stats_data, output_file=None):
     
     plt.tight_layout()
     
-    # 保存图表
+    # Save chart
     if output_file:
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         print(f"📊 图表已保存: {output_file}")
@@ -140,7 +140,7 @@ def plot_statistics(stats_data, output_file=None):
 
 
 def main():
-    """主函数"""
+    """main function"""
     if len(sys.argv) < 2:
         print("用法: python visualize_statistics.py <statistics_json_file> [output_image_file]")
         print("示例: python visualize_statistics.py GJ_log/statistics_20260127_120000.json output.png")
